@@ -2,29 +2,38 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-<span className="text-blue-400 text-xl mr-2">💬</span>
 
 
 const faqs = [
   {
-    question: "How do I create an account?",
+    question: "How does VaultX work?",
     answer:
-      "Click on the Sign Up button in the navbar, fill in your details, verify your email, and start trading instantly.",
+      "You deposit your crypto to our designated wallet address, and our expert trading team allocates it across proven strategies to generate consistent returns. Your earnings are credited to your account and available at the end of your lock-up period.",
   },
   {
-    question: "Is my crypto safe on this platform?",
+    question: "What coins can I deposit?",
     answer:
-      "Yes! We use bank-level encryption, two-factor authentication, and cold storage for user funds.",
+      "We currently support Bitcoin (BTC), Ethereum (ETH), Tether (USDT), BNB, Solana (SOL), and USD Coin (USDC). We're actively expanding our supported asset list.",
   },
   {
-    question: "Can I trade multiple cryptocurrencies?",
+    question: "How long is my funds locked?",
     answer:
-      "Absolutely! Our platform supports Bitcoin, Ethereum, Solana, Binance Coin, and many more.",
+      "The default lock-up period is 30 days from your first confirmed deposit. This allows our trading strategies time to compound your returns. The administrator may also set custom lock periods per account.",
   },
   {
-    question: "Are there any fees?",
+    question: "How do I initiate a withdrawal?",
     answer:
-      "Trading fees are minimal and transparent. You can view all fees on our Fees page.",
+      "Once your lock-up period has ended, go to the Withdraw section of your dashboard. Enter the amount and your wallet address. Our team processes all withdrawal requests within 24–48 hours.",
+  },
+  {
+    question: "How are earnings calculated?",
+    answer:
+      "Earnings are calculated by our trading team based on portfolio performance and credited directly to your account balance. You can track your principal and earnings separately in your dashboard.",
+  },
+  {
+    question: "Is my investment secure?",
+    answer:
+      "All deposits are held securely by the platform. Our trading strategies are managed by experienced professionals focused on capital preservation and growth. We use industry-standard security practices to protect your account.",
   },
 ];
 

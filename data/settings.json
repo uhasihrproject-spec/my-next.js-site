@@ -1,0 +1,15 @@
+{
+  "globalWithdrawalLock": false,
+  "globalWithdrawalLockReason": "",
+  "defaultWithdrawalLockDays": 30,
+  "adminWallets": {
+    "BTC": "",
+    "ETH": "",
+    "USDT": "",
+    "BNB": "",
+    "SOL": "",
+    "USDC": ""
+  },
+  "siteName": "VaultX",
+  "adminEmail": "admin@vaultx.com"
+}

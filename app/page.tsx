@@ -12,7 +12,7 @@ import Phone3D from "@/components/Phone3D";
 import CoinCalculator from "@/components/CoinCalculator";
 export default function Home() {
   return (
-    <main className="bg-gray-950 min-h-screen text-white">
+    <main className="bg-[#050510] min-h-screen text-white">
       <Navbar />
       <Hero />
       <Phone3D />
