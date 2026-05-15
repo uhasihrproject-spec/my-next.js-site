@@ -15,10 +15,10 @@
     "axios": "^1.11.0",
     "framer-motion": "^12.23.12",
     "lucide-react": "^0.542.0",
-    "next": "15.5.2",
-    "react": "19.1.0",
+    "next": "15.5.7",
+    "react": "^19.2.6",
     "react-apexcharts": "^1.7.0",
-    "react-dom": "19.1.0",
+    "react-dom": "^19.2.6",
     "three": "^0.180.0"
   },
   "devDependencies": {
@@ -28,7 +28,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "15.5.2",
+    "eslint-config-next": "15.5.7",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
