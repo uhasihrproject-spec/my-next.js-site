@@ -1,0 +1,11 @@
+# Netlify build configuration for the VaultX Next.js app.
+# The official @netlify/plugin-nextjs is auto-installed by Netlify on detection.
+
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "20"
+  # Allow npm to resolve peer-dependency conflicts (React 19 vs older peer ranges).
+  NPM_FLAGS = "--legacy-peer-deps"
