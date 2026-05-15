@@ -7,21 +7,21 @@ import {
   getSettings,
 } from "@/lib/db";
 
-function requireAdmin(req: NextRequest) {
+async function requireAdmin(req: NextRequest) {
   const token = req.cookies.get("vaultx_session")?.value;
   if (!token) return null;
-  const session = getSessionByToken(token);
+  const session = await getSessionByToken(token);
   if (!session) return null;
-  const user = getUserById(session.userId);
+  const user = await getUserById(session.userId);
   if (!user || user.role !== "admin") return null;
   return user;
 }
 
 export async function GET(req: NextRequest) {
-  if (!requireAdmin(req)) {
+  if (!(await requireAdmin(req))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
-  const users = getUsers().filter((u) => u.role !== "admin");
+  const users = (await getUsers()).filter((u) => u.role !== "admin");
   const deposits = users.flatMap((u) =>
     u.deposits.map((d) => ({ ...d, userId: u.id, userName: u.name, userEmail: u.email }))
   );
@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-  if (!requireAdmin(req)) {
+  if (!(await requireAdmin(req))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   try {
@@ -39,7 +39,7 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    const user = getUserById(userId);
+    const user = await getUserById(userId);
     if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
     const deposit = user.deposits.find((d) => d.id === depositId);
@@ -50,7 +50,7 @@ export async function PUT(req: NextRequest) {
       if (note) deposit.note = note;
       user.balance[deposit.coin] = (user.balance[deposit.coin] || 0) + deposit.amount;
 
-      const settings = getSettings();
+      const settings = await getSettings();
       if (settings.defaultWithdrawalLockDays > 0 && !user.withdrawalUnlockDate) {
         const unlock = new Date();
         unlock.setDate(unlock.getDate() + settings.defaultWithdrawalLockDays);
@@ -63,7 +63,7 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "Invalid action" }, { status: 400 });
     }
 
-    updateUser(user);
+    await updateUser(user);
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

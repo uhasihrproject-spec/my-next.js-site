@@ -13,13 +13,13 @@ export async function POST(req: NextRequest) {
   const token = req.cookies.get("vaultx_session")?.value;
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const session = getSessionByToken(token);
+  const session = await getSessionByToken(token);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const user = getUserById(session.userId);
+  const user = await getUserById(session.userId);
   if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-  const settings = getSettings();
+  const settings = await getSettings();
   const { allowed, reason } = canWithdraw(user, settings);
   if (!allowed) {
     return NextResponse.json({ error: reason }, { status: 403 });
@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
     };
 
     user.withdrawals.push(withdrawal);
-    updateUser(user);
+    await updateUser(user);
 
     return NextResponse.json({ success: true, withdrawal });
   } catch {

@@ -23,14 +23,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid email address" }, { status: 400 });
     }
 
-    if (getUserByEmail(email)) {
+    if (await getUserByEmail(email)) {
       return NextResponse.json(
         { error: "An account with this email already exists" },
         { status: 409 }
       );
     }
 
-    const user = createUser({
+    const user = await createUser({
       name: name.trim(),
       email: email.toLowerCase().trim(),
       password: hashPassword(password),
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
       faceVerified: !!faceVerified,
     });
 
-    const token = createSession(user.id);
+    const token = await createSession(user.id);
 
     const response = NextResponse.json({
       success: true,

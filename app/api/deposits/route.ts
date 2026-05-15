@@ -12,10 +12,10 @@ export async function POST(req: NextRequest) {
   const token = req.cookies.get("vaultx_session")?.value;
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const session = getSessionByToken(token);
+  const session = await getSessionByToken(token);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const user = getUserById(session.userId);
+  const user = await getUserById(session.userId);
   if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
   try {
@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "All fields are required" }, { status: 400 });
     }
 
-    const settings = getSettings();
+    const settings = await getSettings();
     const supportedCoins = ["BTC", "ETH", "USDT", "BNB", "SOL", "USDC"];
     if (!supportedCoins.includes(coin)) {
       return NextResponse.json({ error: "Unsupported coin" }, { status: 400 });
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
     };
 
     user.deposits.push(deposit);
-    updateUser(user);
+    await updateUser(user);
 
     return NextResponse.json({ success: true, deposit });
   } catch {

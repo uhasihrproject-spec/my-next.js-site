@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const user = getUserByEmail(email);
+    const user = await getUserByEmail(email);
     if (!user || user.password !== hashPassword(password)) {
       return NextResponse.json(
         { error: "Invalid email or password" },
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const token = createSession(user.id);
+    const token = await createSession(user.id);
 
     const response = NextResponse.json({
       success: true,

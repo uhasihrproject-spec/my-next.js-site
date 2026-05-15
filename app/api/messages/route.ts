@@ -6,7 +6,7 @@ export async function GET() {
   try {
     const user = await requireAuth();
     // Mark all admin messages to this user as read
-    const all = getMessages();
+    const all = await getMessages();
     let changed = false;
     all.forEach((m) => {
       if (m.userId === user.id && m.from === "admin" && !m.read) {
@@ -14,8 +14,8 @@ export async function GET() {
         changed = true;
       }
     });
-    if (changed) saveMessages(all);
-    const messages = getMessagesByUser(user.id);
+    if (changed) await saveMessages(all);
+    const messages = await getMessagesByUser(user.id);
     return NextResponse.json({ messages });
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     if (!text?.trim()) {
       return NextResponse.json({ error: "Message cannot be empty" }, { status: 400 });
     }
-    const message = createMessage({
+    const message = await createMessage({
       userId: user.id,
       userName: user.name,
       userEmail: user.email,

@@ -1,8 +1,10 @@
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
+import { getStore } from "@netlify/blobs";
 
 const DATA_DIR = path.join(process.cwd(), "data");
+const STORE_NAME = "vaultx-data";
 
 export type CoinKey = "BTC" | "ETH" | "USDT" | "BNB" | "SOL" | "USDC";
 
@@ -84,32 +86,62 @@ export interface Session {
   createdAt: string;
 }
 
-function ensureDir() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
+/* ─────────────────────────────────────────────────────────────────────────
+   Persistence layer.
+
+   In production on Netlify the filesystem is read-only, so data is stored in
+   Netlify Blobs. Locally (and anywhere Blobs isn't configured) it transparently
+   falls back to JSON files on disk — same behaviour as before.
+   ───────────────────────────────────────────────────────────────────────── */
+
+function fsEnsureDir() {
+  try {
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+  } catch { /* read-only filesystem — ignore */ }
 }
 
-function readFile<T>(filename: string, defaultValue: T): T {
-  ensureDir();
-  const filePath = path.join(DATA_DIR, filename);
+function fsRead<T>(filename: string, defaultValue: T): T {
   try {
-    if (!fs.existsSync(filePath)) {
-      fs.writeFileSync(filePath, JSON.stringify(defaultValue, null, 2));
-      return defaultValue;
-    }
+    fsEnsureDir();
+    const filePath = path.join(DATA_DIR, filename);
+    if (!fs.existsSync(filePath)) return defaultValue;
     const content = fs.readFileSync(filePath, "utf-8").trim();
-    if (!content) return defaultValue;
-    return JSON.parse(content);
+    return content ? (JSON.parse(content) as T) : defaultValue;
   } catch {
     return defaultValue;
   }
 }
 
-function writeFile<T>(filename: string, data: T): void {
-  ensureDir();
-  const filePath = path.join(DATA_DIR, filename);
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+function fsWrite<T>(filename: string, data: T): void {
+  try {
+    fsEnsureDir();
+    fs.writeFileSync(path.join(DATA_DIR, filename), JSON.stringify(data, null, 2));
+  } catch { /* read-only filesystem — ignore */ }
+}
+
+/** Read a JSON collection by key (Netlify Blobs, falling back to disk). */
+async function readData<T>(key: string, defaultValue: T): Promise<T> {
+  try {
+    const store = getStore({ name: STORE_NAME, consistency: "strong" });
+    const value = await store.get(key, { type: "json" });
+    if (value === null || value === undefined) {
+      // Nothing stored yet — seed from any bundled JSON file, else default.
+      return fsRead<T>(`${key}.json`, defaultValue);
+    }
+    return value as T;
+  } catch {
+    return fsRead<T>(`${key}.json`, defaultValue);
+  }
+}
+
+/** Write a JSON collection by key (Netlify Blobs, falling back to disk). */
+async function writeData<T>(key: string, data: T): Promise<void> {
+  try {
+    const store = getStore({ name: STORE_NAME, consistency: "strong" });
+    await store.setJSON(key, data);
+  } catch {
+    fsWrite(`${key}.json`, data);
+  }
 }
 
 export function generateId(): string {
@@ -134,8 +166,8 @@ const DEFAULT_SETTINGS: Settings = {
 
 // ─── Users ───────────────────────────────────────────────────────────────────
 
-export function getUsers(): User[] {
-  let users = readFile<User[]>("users.json", []);
+export async function getUsers(): Promise<User[]> {
+  let users = await readData<User[]>("users", []);
   if (!users.some((u) => u.role === "admin")) {
     const admin: User = {
       id: generateId(),
@@ -152,66 +184,66 @@ export function getUsers(): User[] {
       createdAt: new Date().toISOString(),
     };
     users = [admin, ...users];
-    writeFile("users.json", users);
+    await writeData("users", users);
   }
   return users;
 }
 
-export function saveUsers(users: User[]): void {
-  writeFile("users.json", users);
+export async function saveUsers(users: User[]): Promise<void> {
+  await writeData("users", users);
 }
 
-export function getUserById(id: string): User | undefined {
-  return getUsers().find((u) => u.id === id);
+export async function getUserById(id: string): Promise<User | undefined> {
+  return (await getUsers()).find((u) => u.id === id);
 }
 
-export function getUserByEmail(email: string): User | undefined {
-  return getUsers().find(
+export async function getUserByEmail(email: string): Promise<User | undefined> {
+  return (await getUsers()).find(
     (u) => u.email.toLowerCase() === email.toLowerCase()
   );
 }
 
-export function updateUser(updated: User): void {
-  const users = getUsers();
+export async function updateUser(updated: User): Promise<void> {
+  const users = await getUsers();
   const idx = users.findIndex((u) => u.id === updated.id);
   if (idx !== -1) {
     users[idx] = updated;
-    saveUsers(users);
+    await saveUsers(users);
   }
 }
 
-export function createUser(
+export async function createUser(
   data: Omit<User, "id" | "createdAt">
-): User {
+): Promise<User> {
   const user: User = { ...data, id: generateId(), createdAt: new Date().toISOString() };
-  const users = getUsers();
+  const users = await getUsers();
   users.push(user);
-  saveUsers(users);
+  await saveUsers(users);
   return user;
 }
 
 // ─── Settings ────────────────────────────────────────────────────────────────
 
-export function getSettings(): Settings {
-  return readFile<Settings>("settings.json", DEFAULT_SETTINGS);
+export async function getSettings(): Promise<Settings> {
+  return readData<Settings>("settings", DEFAULT_SETTINGS);
 }
 
-export function saveSettings(settings: Settings): void {
-  writeFile("settings.json", settings);
+export async function saveSettings(settings: Settings): Promise<void> {
+  await writeData("settings", settings);
 }
 
 // ─── Sessions ────────────────────────────────────────────────────────────────
 
-export function getSessions(): Session[] {
-  return readFile<Session[]>("sessions.json", []);
+export async function getSessions(): Promise<Session[]> {
+  return readData<Session[]>("sessions", []);
 }
 
-export function createSession(userId: string): string {
+export async function createSession(userId: string): Promise<string> {
   const token = crypto.randomBytes(32).toString("hex");
-  const sessions = getSessions();
+  const sessions = await getSessions();
   const others = sessions.filter((s) => s.userId !== userId);
   const mine = sessions.filter((s) => s.userId === userId).slice(-4);
-  writeFile("sessions.json", [
+  await writeData("sessions", [
     ...others,
     ...mine,
     { token, userId, createdAt: new Date().toISOString() },
@@ -219,14 +251,14 @@ export function createSession(userId: string): string {
   return token;
 }
 
-export function getSessionByToken(token: string): Session | undefined {
-  return getSessions().find((s) => s.token === token);
+export async function getSessionByToken(token: string): Promise<Session | undefined> {
+  return (await getSessions()).find((s) => s.token === token);
 }
 
-export function deleteSession(token: string): void {
-  writeFile(
-    "sessions.json",
-    getSessions().filter((s) => s.token !== token)
+export async function deleteSession(token: string): Promise<void> {
+  await writeData(
+    "sessions",
+    (await getSessions()).filter((s) => s.token !== token)
   );
 }
 
@@ -285,22 +317,22 @@ function normalizePhone(phone: string): string {
 }
 
 /** Store a 6-digit code for a phone number (10-minute expiry). */
-export function saveOtp(phone: string, code: string): void {
+export async function saveOtp(phone: string, code: string): Promise<void> {
   const key = normalizePhone(phone);
   const now = Date.now();
-  const otps = readFile<OtpEntry[]>("otps.json", [])
+  const otps = (await readData<OtpEntry[]>("otps", []))
     .filter((o) => o.phone !== key && o.expiresAt > now);
   otps.push({ phone: key, code, expiresAt: now + 10 * 60 * 1000 });
-  writeFile("otps.json", otps);
+  await writeData("otps", otps);
 }
 
 /** Verify a code for a phone number. Consumes the code on success. */
-export function checkOtp(phone: string, code: string): boolean {
+export async function checkOtp(phone: string, code: string): Promise<boolean> {
   const key = normalizePhone(phone);
-  const otps = readFile<OtpEntry[]>("otps.json", []);
+  const otps = await readData<OtpEntry[]>("otps", []);
   const entry = otps.find((o) => o.phone === key);
   if (!entry || entry.expiresAt < Date.now() || entry.code !== code) return false;
-  writeFile("otps.json", otps.filter((o) => o.phone !== key));
+  await writeData("otps", otps.filter((o) => o.phone !== key));
   return true;
 }
 
@@ -317,28 +349,28 @@ export interface ChatMessage {
   read: boolean;
 }
 
-export function getMessages(): ChatMessage[] {
-  return readFile<ChatMessage[]>("messages.json", []);
+export async function getMessages(): Promise<ChatMessage[]> {
+  return readData<ChatMessage[]>("messages", []);
 }
 
-export function saveMessages(messages: ChatMessage[]): void {
-  writeFile("messages.json", messages);
+export async function saveMessages(messages: ChatMessage[]): Promise<void> {
+  await writeData("messages", messages);
 }
 
-export function getMessagesByUser(userId: string): ChatMessage[] {
-  return getMessages().filter((m) => m.userId === userId);
+export async function getMessagesByUser(userId: string): Promise<ChatMessage[]> {
+  return (await getMessages()).filter((m) => m.userId === userId);
 }
 
-export function createMessage(
+export async function createMessage(
   data: Omit<ChatMessage, "id" | "createdAt">
-): ChatMessage {
+): Promise<ChatMessage> {
   const message: ChatMessage = {
     ...data,
     id: generateId(),
     createdAt: new Date().toISOString(),
   };
-  const messages = getMessages();
+  const messages = await getMessages();
   messages.push(message);
-  saveMessages(messages);
+  await saveMessages(messages);
   return message;
 }

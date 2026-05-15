@@ -1,21 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionByToken, getUserById, getUsers, updateUser } from "@/lib/db";
 
-function requireAdmin(req: NextRequest) {
+async function requireAdmin(req: NextRequest) {
   const token = req.cookies.get("vaultx_session")?.value;
   if (!token) return null;
-  const session = getSessionByToken(token);
+  const session = await getSessionByToken(token);
   if (!session) return null;
-  const user = getUserById(session.userId);
+  const user = await getUserById(session.userId);
   if (!user || user.role !== "admin") return null;
   return user;
 }
 
 export async function GET(req: NextRequest) {
-  if (!requireAdmin(req)) {
+  if (!(await requireAdmin(req))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
-  const users = getUsers().filter((u) => u.role !== "admin");
+  const users = (await getUsers()).filter((u) => u.role !== "admin");
   const withdrawals = users.flatMap((u) =>
     u.withdrawals.map((w) => ({
       ...w,
@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-  if (!requireAdmin(req)) {
+  if (!(await requireAdmin(req))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   try {
@@ -40,7 +40,7 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    const user = getUserById(userId);
+    const user = await getUserById(userId);
     if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
     const withdrawal = user.withdrawals.find((w) => w.id === withdrawalId);
@@ -69,7 +69,7 @@ export async function PUT(req: NextRequest) {
     }
 
     if (note) withdrawal.note = note;
-    updateUser(user);
+    await updateUser(user);
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@netlify/blobs": "^10.7.7",
     "@react-three/drei": "^10.7.4",
     "@react-three/fiber": "^9.3.0",
     "apexcharts": "^5.3.4",

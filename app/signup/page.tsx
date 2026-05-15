@@ -208,6 +208,7 @@ function PhoneStep({ phone, dir, onBack, onVerified }: {
   const [sent, setSent] = useState(false);
   const [code, setCode] = useState("");
   const [devCode, setDevCode] = useState("");
+  const [smsSent, setSmsSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [cooldown, setCooldown] = useState(0);
@@ -230,6 +231,7 @@ function PhoneStep({ phone, dir, onBack, onVerified }: {
       setSent(true);
       setCode("");
       setDevCode(d.devCode || "");
+      setSmsSent(!!d.sms);
       setCooldown(30);
     } catch { setError("Network error. Please try again."); }
     finally { setBusy(false); }
@@ -281,12 +283,21 @@ function PhoneStep({ phone, dir, onBack, onVerified }: {
         <>
           <CodeInput value={code} onChange={setCode} disabled={busy} />
 
+          {smsSent && (
+            <div className="mt-4 flex items-center gap-2 px-3 py-2.5 rounded-lg bg-emerald-400/[0.06] border border-emerald-400/15">
+              <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <p className="text-[11px] font-light text-emerald-300/80">
+                Code texted to <span className="text-emerald-200">{phone}</span> — it may take a few seconds to arrive.
+              </p>
+            </div>
+          )}
+
           {devCode && (
             <div className="mt-4 flex items-start gap-2 px-3 py-2.5 rounded-lg bg-amber-400/[0.06] border border-amber-400/15">
               <AlertCircle className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
               <p className="text-[11px] font-light text-amber-300/80 leading-relaxed">
-                Demo mode (no SMS gateway connected): your code is{" "}
-                <span className="font-mono font-normal text-amber-200">{devCode}</span>. Connect an SMS provider to deliver it for real.
+                Free SMS limit reached — demo mode: your code is{" "}
+                <span className="font-mono font-normal text-amber-200">{devCode}</span>.
               </p>
             </div>
           )}

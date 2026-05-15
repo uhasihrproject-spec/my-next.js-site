@@ -6,9 +6,9 @@ export async function getAuthUser(): Promise<User | null> {
     const cookieStore = await cookies();
     const token = cookieStore.get("vaultx_session")?.value;
     if (!token) return null;
-    const session = getSessionByToken(token);
+    const session = await getSessionByToken(token);
     if (!session) return null;
-    return getUserById(session.userId) ?? null;
+    return (await getUserById(session.userId)) ?? null;
   } catch {
     return null;
   }

@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionByToken, getUserById, updateUser, hashPassword } from "@/lib/db";
 
-function currentUser(req: NextRequest) {
+async function currentUser(req: NextRequest) {
   const token = req.cookies.get("vaultx_session")?.value;
   if (!token) return null;
-  const session = getSessionByToken(token);
+  const session = await getSessionByToken(token);
   if (!session) return null;
-  return getUserById(session.userId) || null;
+  return (await getUserById(session.userId)) || null;
 }
 
 function hashPin(pin: string) {
@@ -20,7 +20,7 @@ function hashPin(pin: string) {
  */
 export async function POST(req: NextRequest) {
   try {
-    const user = currentUser(req);
+    const user = await currentUser(req);
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { action, pin } = await req.json();
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === "set") {
-      updateUser({ ...user, pin: hashPin(String(pin)) });
+      await updateUser({ ...user, pin: hashPin(String(pin)) });
       return NextResponse.json({ success: true });
     }
 

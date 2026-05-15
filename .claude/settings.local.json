@@ -5,7 +5,17 @@
       "Bash(Select-Object FullName)",
       "Bash(Format-Table -AutoSize)",
       "Bash(npx tsc *)",
-      "Bash(npx next *)"
+      "Bash(npx next *)",
+      "Bash(git rm *)",
+      "Bash(rm -f next.config.js)",
+      "Bash(cp /tmp/layout.bak app/layout.tsx)",
+      "Bash(rm /tmp/layout.bak)",
+      "Bash(rm -f package-lock.json)",
+      "WebFetch(domain:ntl.fyi)",
+      "WebSearch",
+      "WebFetch(domain:www.netlify.com)",
+      "WebFetch(domain:min-api.cryptocompare.com)",
+      "WebFetch(domain:registry.npmjs.org)"
     ]
   }
 }

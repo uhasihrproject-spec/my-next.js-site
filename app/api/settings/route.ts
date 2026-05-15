@@ -9,12 +9,12 @@ import { getSessionByToken, getUserById, getSettings } from "@/lib/db";
 export async function GET(req: NextRequest) {
   const token = req.cookies.get("vaultx_session")?.value;
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const session = getSessionByToken(token);
+  const session = await getSessionByToken(token);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const user = getUserById(session.userId);
+  const user = await getUserById(session.userId);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const s = getSettings();
+  const s = await getSettings();
   return NextResponse.json({
     settings: {
       globalWithdrawalLock: s.globalWithdrawalLock,

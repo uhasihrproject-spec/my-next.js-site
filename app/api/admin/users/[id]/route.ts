@@ -7,12 +7,12 @@ import {
   type CoinKey,
 } from "@/lib/db";
 
-function requireAdmin(req: NextRequest) {
+async function requireAdmin(req: NextRequest) {
   const token = req.cookies.get("vaultx_session")?.value;
   if (!token) return null;
-  const session = getSessionByToken(token);
+  const session = await getSessionByToken(token);
   if (!session) return null;
-  const user = getUserById(session.userId);
+  const user = await getUserById(session.userId);
   if (!user || user.role !== "admin") return null;
   return user;
 }
@@ -21,11 +21,11 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!requireAdmin(req)) {
+  if (!(await requireAdmin(req))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const { id } = await params;
-  const user = getUserById(id);
+  const user = await getUserById(id);
   if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
   return NextResponse.json({ user: sanitizeUser(user) });
 }
@@ -34,11 +34,11 @@ export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!requireAdmin(req)) {
+  if (!(await requireAdmin(req))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const { id } = await params;
-  const user = getUserById(id);
+  const user = await getUserById(id);
   if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
   try {
@@ -78,7 +78,7 @@ export async function PUT(
       user.customLock = Boolean(customLock);
     }
 
-    updateUser(user);
+    await updateUser(user);
     return NextResponse.json({ success: true, user: sanitizeUser(user) });
   } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

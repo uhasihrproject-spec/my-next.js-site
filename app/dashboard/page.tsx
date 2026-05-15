@@ -11,7 +11,7 @@ import {
   Wallet, Activity, Plus, LineChart, Settings as SettingsIcon,
   X, Bell, RefreshCw, Sparkles, KeyRound, Fingerprint, Mail,
   BadgeCheck, Calculator, Newspaper, ArrowUpDown, ExternalLink,
-  Delete, ScanFace, Download, Receipt as ReceiptIcon,
+  Delete, ScanFace, Download, Receipt as ReceiptIcon, Eye, EyeOff,
 } from "lucide-react";
 import type { CoinKey } from "@/lib/db";
 import ChatWidget from "@/components/ChatWidget";
@@ -235,8 +235,9 @@ function Sparkline({ data, positive, w = 64, h = 24 }: { data: number[]; positiv
 }
 
 /* ─── Stacked balance card ─── */
-function BalanceStack({ user, totalEarnings, activeCoins, locked }: {
+function BalanceStack({ user, totalEarnings, activeCoins, locked, hidden, onToggleHidden }: {
   user: UserData; totalEarnings: number; activeCoins: CoinKey[]; locked: boolean;
+  hidden: boolean; onToggleHidden: () => void;
 }) {
   const vaultNo = (user.id.replace(/[^a-zA-Z0-9]/g, "").toUpperCase() + "00000000").slice(-8);
   return (
@@ -267,15 +268,21 @@ function BalanceStack({ user, totalEarnings, activeCoins, locked }: {
               </div>
               <span className="text-[12px] font-normal text-white tracking-wide">VaultX</span>
             </div>
-            <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-white/[0.05] border border-white/[0.08]">
-              <Lock className="w-2.5 h-2.5 text-zinc-400" />
-              <span className="text-[9px] font-light text-zinc-400 tracking-wide">{locked ? "Secured · Locked" : "Secured"}</span>
+            <div className="flex items-center gap-1.5">
+              <button onClick={onToggleHidden} title={hidden ? "Show balance" : "Hide balance"}
+                className="w-7 h-7 rounded-md bg-white/[0.05] border border-white/[0.08] flex items-center justify-center text-zinc-400 hover:text-white transition-colors">
+                {hidden ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+              </button>
+              <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-white/[0.05] border border-white/[0.08]">
+                <Lock className="w-2.5 h-2.5 text-zinc-400" />
+                <span className="text-[9px] font-light text-zinc-400 tracking-wide">{locked ? "Secured · Locked" : "Secured"}</span>
+              </div>
             </div>
           </div>
 
           <p className="text-[10px] font-normal tracking-[0.18em] text-blue-300/50 uppercase mb-1.5">Total earned</p>
           <p className="text-[32px] font-light text-white font-mono leading-none mb-1.5">
-            +{totalEarnings.toFixed(5)}
+            {hidden ? "••••••" : `+${totalEarnings.toFixed(5)}`}
           </p>
           <div className="flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
@@ -863,10 +870,11 @@ function WithdrawOverlay({
    SHARED CONTENT — Portfolio & Activity
 ════════════════════════════════════════ */
 function PortfolioContent({
-  user, activeCoins, hasAnyBalance, lockStatus, onDeposit,
+  user, activeCoins, hasAnyBalance, lockStatus, onDeposit, hidden,
 }: {
   user: UserData; activeCoins: CoinKey[]; hasAnyBalance: boolean;
   lockStatus: { locked: boolean; reason: string | null } | null; onDeposit: () => void;
+  hidden: boolean;
 }) {
   return (
     <motion.div key="portfolio" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
@@ -926,9 +934,9 @@ function PortfolioContent({
                           <p className="text-[10px] font-light text-zinc-600 mt-0.5">{c}</p>
                         </div>
                       </div>
-                      <p className="text-[13px] font-light text-white font-mono text-right">{total.toFixed(6)}</p>
-                      <p className="text-[13px] font-light text-emerald-400/80 font-mono text-right">+{earn.toFixed(6)}</p>
-                      <p className="text-[12px] font-light text-emerald-400 font-mono text-right">{pct ? `+${pct}%` : "—"}</p>
+                      <p className="text-[13px] font-light text-white font-mono text-right">{hidden ? "••••" : total.toFixed(6)}</p>
+                      <p className="text-[13px] font-light text-emerald-400/80 font-mono text-right">{hidden ? "••••" : `+${earn.toFixed(6)}`}</p>
+                      <p className="text-[12px] font-light text-emerald-400 font-mono text-right">{hidden ? "••" : pct ? `+${pct}%` : "—"}</p>
                     </motion.div>
                   );
                 })}
@@ -958,10 +966,10 @@ function PortfolioContent({
                       <p className="text-[11px] font-light text-zinc-600 mt-0.5">{c}</p>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="text-[15px] font-light text-white font-mono">{total.toFixed(4)}</p>
+                      <p className="text-[15px] font-light text-white font-mono">{hidden ? "••••" : total.toFixed(4)}</p>
                       <div className="flex items-center justify-end gap-1.5 mt-0.5">
-                        <span className="text-[11px] font-light text-emerald-400/80 font-mono">+{earn.toFixed(4)}</span>
-                        {pct && <span className="text-[10px] font-light text-emerald-400/60">· +{pct}%</span>}
+                        <span className="text-[11px] font-light text-emerald-400/80 font-mono">{hidden ? "••••" : `+${earn.toFixed(4)}`}</span>
+                        {!hidden && pct && <span className="text-[10px] font-light text-emerald-400/60">· +{pct}%</span>}
                       </div>
                     </div>
                   </motion.div>
@@ -1796,7 +1804,7 @@ function CoinCalculator() {
 ════════════════════════════════════════ */
 interface NewsArticle {
   id: string; title: string; url: string; imageurl: string;
-  source: string; body: string; published_on: number;
+  source: string; published_on: number;
 }
 
 function timeAgo(unixSec: number) {
@@ -1813,10 +1821,10 @@ function CryptoNews() {
   const fetchNews = useCallback(async () => {
     setStatus("loading");
     try {
-      const r = await fetch("https://min-api.cryptocompare.com/data/v2/news/?lang=EN");
+      const r = await fetch("/api/news");
       if (!r.ok) throw new Error();
       const d = await r.json();
-      const items: NewsArticle[] = (d.Data || []).slice(0, 12);
+      const items: NewsArticle[] = d.articles || [];
       if (!items.length) throw new Error();
       setNews(items);
       setStatus("ok");
@@ -2134,7 +2142,20 @@ export default function Dashboard() {
   const [hasPin, setHasPin] = useState(false);
   const [locked, setLocked] = useState(true);
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
+  const [balanceHidden, setBalanceHidden] = useState(false);
   const initialised = useRef(false);
+
+  useEffect(() => {
+    try { setBalanceHidden(localStorage.getItem("vaultx_hide_balance") === "1"); } catch { /* ignore */ }
+  }, []);
+
+  function toggleBalanceHidden() {
+    setBalanceHidden((h) => {
+      const next = !h;
+      try { localStorage.setItem("vaultx_hide_balance", next ? "1" : "0"); } catch { /* ignore */ }
+      return next;
+    });
+  }
 
   const load = useCallback(async () => {
     const [me, cfg] = await Promise.all([fetch("/api/auth/me"), fetch("/api/settings")]);
@@ -2320,7 +2341,8 @@ export default function Dashboard() {
 
           {/* Stacked balance card — directly under the name */}
           {tab === "portfolio" && user && (
-            <BalanceStack user={user} totalEarnings={totalEarnings} activeCoins={activeCoins} locked={!!lockStatus?.locked} />
+            <BalanceStack user={user} totalEarnings={totalEarnings} activeCoins={activeCoins} locked={!!lockStatus?.locked}
+              hidden={balanceHidden} onToggleHidden={toggleBalanceHidden} />
           )}
 
           {/* Mobile quick actions (desktop has them in sidebar) */}
@@ -2343,6 +2365,7 @@ export default function Dashboard() {
                 key="portfolio"
                 user={user} activeCoins={activeCoins}
                 hasAnyBalance={hasAnyBalance} lockStatus={lockStatus}
+                hidden={balanceHidden}
                 onDeposit={() => setDepositOpen(true)}
               />
             )}

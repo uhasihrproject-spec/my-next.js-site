@@ -5,7 +5,7 @@ import { getMessages, saveMessages, createMessage, getUserById } from "@/lib/db"
 export async function GET() {
   try {
     await requireAdmin();
-    const messages = getMessages();
+    const messages = await getMessages();
 
     // Group by userId
     const userMap = new Map<
@@ -54,23 +54,23 @@ export async function PUT(req: NextRequest) {
     const { userId, text, markRead } = await req.json();
 
     if (markRead) {
-      const all = getMessages();
+      const all = await getMessages();
       all.forEach((m) => {
         if (m.userId === userId && m.from === "user") m.read = true;
       });
-      saveMessages(all);
+      await saveMessages(all);
       return NextResponse.json({ ok: true });
     }
 
     if (!text?.trim()) {
       return NextResponse.json({ error: "Message cannot be empty" }, { status: 400 });
     }
-    const user = getUserById(userId);
+    const user = await getUserById(userId);
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const message = createMessage({
+    const message = await createMessage({
       userId,
       userName: user.name,
       userEmail: user.email,
