@@ -1,249 +1,657 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { motion } from "framer-motion";
-import { Eye, EyeOff, Lock, Mail, User, Loader2, TrendingUp, CheckCircle2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  TrendingUp, Eye, EyeOff, Loader2, ShieldCheck,
+  Check, User, Mail, Phone, Globe, Calendar, KeyRound,
+  ArrowRight, ArrowLeft, AlertCircle, Snowflake, ScanFace,
+  Camera, RotateCw, MessageSquareText,
+} from "lucide-react";
 
-export default function SignupPage() {
-  const router = useRouter();
-  const [form, setForm] = useState({ name: "", email: "", password: "", confirm: "" });
-  const [showPass, setShowPass] = useState(false);
-  const [loading, setLoading] = useState(false);
+const COUNTRIES = [
+  "United States", "United Kingdom", "Canada", "Australia", "Germany",
+  "France", "Netherlands", "Switzerland", "Singapore", "Japan",
+  "United Arab Emirates", "South Africa", "Nigeria", "Kenya", "Ghana",
+  "India", "Brazil", "Mexico", "Spain", "Italy", "Other",
+];
+
+type Step = "details" | "phone" | "face";
+const STEP_LIST: { id: Step; label: string; sub: string }[] = [
+  { id: "details", label: "Personal details", sub: "Tell us about yourself" },
+  { id: "phone",   label: "Phone verification", sub: "Confirm your number" },
+  { id: "face",    label: "Identity check", sub: "Quick liveness scan" },
+];
+
+const fieldCls =
+  "w-full pl-10 pr-3.5 py-2.5 bg-[#0c0c0d] border border-white/[0.08] rounded-lg text-white text-[13px] placeholder-zinc-700 focus:outline-none focus:border-blue-500/40 transition-colors";
+
+const slide = {
+  initial: (d: number) => ({ x: d * 40, opacity: 0 }),
+  animate: { x: 0, opacity: 1, transition: { duration: 0.25, ease: "easeOut" as const } },
+  exit: (d: number) => ({ x: d * -40, opacity: 0, transition: { duration: 0.18 } }),
+};
+
+/* ════════ 6-digit code input ════════ */
+function CodeInput({ value, onChange, disabled }: { value: string; onChange: (v: string) => void; disabled?: boolean }) {
+  const refs = useRef<(HTMLInputElement | null)[]>([]);
+  function setDigit(i: number, d: string) {
+    const digit = d.replace(/\D/g, "").slice(-1);
+    const arr = (value + "      ").slice(0, 6).split("");
+    arr[i] = digit || " ";
+    const next = arr.join("").replace(/ /g, "").slice(0, 6);
+    onChange(next);
+    if (digit && i < 5) refs.current[i + 1]?.focus();
+  }
+  return (
+    <div className="flex gap-2 justify-center">
+      {[0, 1, 2, 3, 4, 5].map((i) => (
+        <input
+          key={i}
+          ref={(el) => { refs.current[i] = el; }}
+          inputMode="numeric"
+          maxLength={1}
+          disabled={disabled}
+          value={value[i] || ""}
+          onChange={(e) => setDigit(i, e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Backspace" && !value[i] && i > 0) refs.current[i - 1]?.focus(); }}
+          onPaste={(e) => {
+            e.preventDefault();
+            const txt = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+            if (txt) { onChange(txt); refs.current[Math.min(txt.length, 5)]?.focus(); }
+          }}
+          className="w-11 h-13 py-2.5 text-center text-[20px] font-light text-white bg-[#0c0c0d] border border-white/[0.1] rounded-lg focus:outline-none focus:border-blue-500/50 disabled:opacity-50 transition-colors"
+        />
+      ))}
+    </div>
+  );
+}
+
+/* ════════ Step 1 — Details ════════ */
+function DetailsStep({ form, setForm, agree, setAgree, consent, setConsent, dir, onNext }: {
+  form: Record<string, string>;
+  setForm: (f: Record<string, string>) => void;
+  agree: boolean; setAgree: (v: boolean) => void;
+  consent: boolean; setConsent: (v: boolean) => void;
+  dir: number; onNext: () => void;
+}) {
+  const [show, setShow] = useState(false);
   const [error, setError] = useState("");
+  const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+    setForm({ ...form, [k]: e.target.value });
 
-  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    setForm((f) => ({ ...f, [k]: e.target.value }));
-
-  const passwordStrength = (p: string) => {
+  const strength = (() => {
+    const p = form.password || "";
     if (!p) return 0;
-    let score = 0;
-    if (p.length >= 8) score++;
-    if (/[A-Z]/.test(p)) score++;
-    if (/[0-9]/.test(p)) score++;
-    if (/[^A-Za-z0-9]/.test(p)) score++;
-    return score;
-  };
+    return [p.length >= 8, /[A-Z]/.test(p), /[0-9]/.test(p), /[^A-Za-z0-9]/.test(p)].filter(Boolean).length;
+  })();
+  const strengthLabel = ["", "Weak", "Fair", "Strong", "Very strong"][strength];
+  const strengthColor = ["", "bg-red-500", "bg-amber-500", "bg-blue-500", "bg-emerald-500"][strength];
 
-  const strength = passwordStrength(form.password);
-  const strengthLabel = ["", "Weak", "Fair", "Good", "Strong"][strength];
-  const strengthColor = ["", "bg-red-500", "bg-yellow-500", "bg-blue-500", "bg-green-500"][strength];
-
-  async function handleSubmit(e: React.FormEvent) {
+  function submit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    if (form.password !== form.confirm) {
-      setError("Passwords do not match");
-      return;
+    if (!form.name || !form.email || !form.phone || !form.country || !form.dob) {
+      setError("Please complete every field — all details are required for verification."); return;
     }
-    if (form.password.length < 8) {
-      setError("Password must be at least 8 characters");
-      return;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) { setError("Enter a valid email address"); return; }
+    if (form.password !== form.confirm) { setError("Passwords do not match"); return; }
+    if ((form.password || "").length < 8) { setError("Password must be at least 8 characters"); return; }
+    if (!agree) { setError("You must accept the Terms of Service and Privacy Policy"); return; }
+    if (!consent) { setError("Identity verification consent is required to open an account"); return; }
+    onNext();
+  }
+
+  return (
+    <motion.form custom={dir} variants={slide} initial="initial" animate="animate" exit="exit"
+      onSubmit={submit} className="space-y-6">
+      {error && (
+        <div className="px-4 py-3 rounded-lg bg-red-500/[0.07] border border-red-500/20 text-red-400 text-[12px] font-light">
+          {error}
+        </div>
+      )}
+
+      <div>
+        <p className="text-[10px] font-normal tracking-[0.18em] text-zinc-600 uppercase mb-3">Personal details</p>
+        <div className="space-y-3">
+          <div className="relative">
+            <User className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-600" />
+            <input type="text" value={form.name} onChange={set("name")} placeholder="Full legal name" className={fieldCls} />
+          </div>
+          <div className="relative">
+            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-600" />
+            <input type="email" value={form.email} onChange={set("email")} placeholder="Email address" className={fieldCls} />
+          </div>
+          <div className="relative">
+            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-600" />
+            <input type="tel" value={form.phone} onChange={set("phone")} placeholder="Phone number (with country code)" className={fieldCls} />
+          </div>
+          <div className="relative">
+            <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-600 z-10" />
+            <select value={form.country} onChange={set("country")}
+              className={`${fieldCls} appearance-none cursor-pointer ${form.country ? "text-white" : "text-zinc-700"}`}>
+              <option value="" disabled>Country of residence</option>
+              {COUNTRIES.map((c) => <option key={c} value={c} className="bg-[#0c0c0d] text-white">{c}</option>)}
+            </select>
+          </div>
+          <div className="relative">
+            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-600 z-10" />
+            <input type="date" value={form.dob} onChange={set("dob")}
+              className={`${fieldCls} ${form.dob ? "text-white" : "text-zinc-700"} [color-scheme:dark]`} />
+            <span className="absolute -top-2 left-9 px-1 bg-[#0a0a0b] text-[9px] font-light text-zinc-600">Date of birth</span>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <p className="text-[10px] font-normal tracking-[0.18em] text-zinc-600 uppercase mb-3">Account security</p>
+        <div className="space-y-3">
+          <div className="relative">
+            <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-600" />
+            <input type={show ? "text" : "password"} value={form.password} onChange={set("password")}
+              placeholder="Create a password" className={`${fieldCls} pr-10`} />
+            <button type="button" onClick={() => setShow(!show)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-zinc-400 transition-colors">
+              {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+          {form.password && (
+            <div>
+              <div className="flex gap-1">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className={`h-1 flex-1 rounded-full transition-all ${i <= strength ? strengthColor : "bg-white/[0.07]"}`} />
+                ))}
+              </div>
+              <p className="text-[10px] font-light text-zinc-600 mt-1.5">
+                Strength: <span className="text-zinc-400">{strengthLabel}</span> · use 8+ chars, a number &amp; a symbol
+              </p>
+            </div>
+          )}
+          <div className="relative">
+            <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-600" />
+            <input type="password" value={form.confirm} onChange={set("confirm")} placeholder="Confirm password"
+              className={`${fieldCls} ${form.confirm && form.confirm !== form.password ? "border-red-500/40" : ""}`} />
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-2.5">
+        {[
+          { state: agree, toggle: () => setAgree(!agree), node: <>I agree to the <Link href="/" className="text-blue-400 hover:underline">Terms of Service</Link> and <Link href="/" className="text-blue-400 hover:underline">Privacy Policy</Link>.</> },
+          { state: consent, toggle: () => setConsent(!consent), node: <>I consent to phone &amp; identity (KYC) verification of the details I&apos;ve provided.</> },
+        ].map(({ state, toggle, node }, i) => (
+          <button key={i} type="button" onClick={toggle} className="flex items-start gap-2.5 text-left w-full group">
+            <span className={`w-4 h-4 rounded mt-0.5 shrink-0 flex items-center justify-center border transition-colors ${
+              state ? "bg-blue-600 border-blue-600" : "border-white/15 group-hover:border-white/30"
+            }`}>
+              {state && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
+            </span>
+            <span className="text-[11.5px] font-light text-zinc-500 leading-relaxed">{node}</span>
+          </button>
+        ))}
+      </div>
+
+      <button type="submit"
+        className="w-full flex items-center justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-500 text-white text-[13px] font-normal rounded-lg transition-colors">
+        Continue to verification <ArrowRight className="w-4 h-4" />
+      </button>
+    </motion.form>
+  );
+}
+
+/* ════════ Step 2 — Phone OTP ════════ */
+function PhoneStep({ phone, dir, onBack, onVerified }: {
+  phone: string; dir: number; onBack: () => void; onVerified: () => void;
+}) {
+  const [sent, setSent] = useState(false);
+  const [code, setCode] = useState("");
+  const [devCode, setDevCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const id = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(id);
+  }, [cooldown]);
+
+  const sendCode = useCallback(async () => {
+    setBusy(true); setError("");
+    try {
+      const r = await fetch("/api/auth/otp", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "send", phone }),
+      });
+      const d = await r.json();
+      if (!r.ok) { setError(d.error || "Couldn't send the code"); return; }
+      setSent(true);
+      setCode("");
+      setDevCode(d.devCode || "");
+      setCooldown(30);
+    } catch { setError("Network error. Please try again."); }
+    finally { setBusy(false); }
+  }, [phone]);
+
+  const verify = useCallback(async (value: string) => {
+    setBusy(true); setError("");
+    try {
+      const r = await fetch("/api/auth/otp", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "verify", phone, code: value }),
+      });
+      const d = await r.json();
+      if (!r.ok) { setError(d.error || "Incorrect code"); setBusy(false); return; }
+      onVerified();
+    } catch { setError("Network error. Please try again."); setBusy(false); }
+  }, [phone, onVerified]);
+
+  useEffect(() => {
+    if (code.length === 6 && !busy) verify(code);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [code]);
+
+  return (
+    <motion.div custom={dir} variants={slide} initial="initial" animate="animate" exit="exit">
+      <div className="w-12 h-12 rounded-xl bg-blue-500/[0.1] border border-blue-500/20 flex items-center justify-center mb-5">
+        <MessageSquareText className="w-5 h-5 text-blue-400" />
+      </div>
+      <h2 className="text-[20px] font-light text-white mb-1.5">Verify your phone</h2>
+      <p className="text-[13px] font-light text-zinc-500 mb-6">
+        {sent
+          ? <>Enter the 6-digit code we sent to <span className="text-zinc-300">{phone}</span>.</>
+          : <>We&apos;ll send a one-time code to <span className="text-zinc-300">{phone}</span> to confirm it&apos;s really you.</>}
+      </p>
+
+      {error && (
+        <div className="mb-4 px-4 py-3 rounded-lg bg-red-500/[0.07] border border-red-500/20 text-red-400 text-[12px] font-light">
+          {error}
+        </div>
+      )}
+
+      {!sent ? (
+        <button onClick={sendCode} disabled={busy}
+          className="w-full flex items-center justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-[13px] font-normal rounded-lg transition-colors">
+          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <MessageSquareText className="w-4 h-4" />}
+          Send verification code
+        </button>
+      ) : (
+        <>
+          <CodeInput value={code} onChange={setCode} disabled={busy} />
+
+          {devCode && (
+            <div className="mt-4 flex items-start gap-2 px-3 py-2.5 rounded-lg bg-amber-400/[0.06] border border-amber-400/15">
+              <AlertCircle className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+              <p className="text-[11px] font-light text-amber-300/80 leading-relaxed">
+                Demo mode (no SMS gateway connected): your code is{" "}
+                <span className="font-mono font-normal text-amber-200">{devCode}</span>. Connect an SMS provider to deliver it for real.
+              </p>
+            </div>
+          )}
+
+          <div className="flex items-center justify-center gap-1.5 mt-5 text-[12px] font-light">
+            {busy && code.length === 6
+              ? <span className="text-zinc-500 flex items-center gap-1.5"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Verifying…</span>
+              : cooldown > 0
+                ? <span className="text-zinc-600">Resend code in 0:{String(cooldown).padStart(2, "0")}</span>
+                : <button onClick={sendCode} disabled={busy} className="text-blue-400 hover:underline">Resend code</button>}
+          </div>
+        </>
+      )}
+
+      <button onClick={onBack}
+        className="w-full mt-6 flex items-center justify-center gap-1.5 py-2.5 text-zinc-600 hover:text-zinc-300 text-[12px] font-light transition-colors">
+        <ArrowLeft className="w-3.5 h-3.5" /> Back to details
+      </button>
+    </motion.div>
+  );
+}
+
+/* ════════ Step 3 — Facial liveness ════════ */
+const PROMPTS = [
+  "Position your face inside the circle",
+  "Blink your eyes slowly",
+  "Turn your head left, then right",
+  "Hold still — capturing your scan",
+];
+
+function FaceStep({ dir, registering, registerError, onBack, onComplete, onRetryRegister }: {
+  dir: number; registering: boolean; registerError: string;
+  onBack: () => void; onComplete: () => void; onRetryRegister: () => void;
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const [phase, setPhase] = useState<"intro" | "running" | "done">("intro");
+  const [camReady, setCamReady] = useState(false);
+  const [camError, setCamError] = useState(false);
+  const [promptIndex, setPromptIndex] = useState(0);
+  const [photo, setPhoto] = useState("");
+  const [retryKey, setRetryKey] = useState(0);
+
+  const stopCamera = useCallback(() => {
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+  }, []);
+
+  // Camera setup
+  useEffect(() => {
+    let cancelled = false;
+    setCamError(false); setCamReady(false);
+    (async () => {
+      try {
+        if (!navigator.mediaDevices?.getUserMedia) throw new Error("unsupported");
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 640 } },
+          audio: false,
+        });
+        if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return; }
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play().catch(() => {});
+        }
+        setCamReady(true);
+      } catch {
+        if (!cancelled) setCamError(true);
+      }
+    })();
+    return () => { cancelled = true; stopCamera(); };
+  }, [retryKey, stopCamera]);
+
+  // Liveness sequence
+  const capture = useCallback(() => {
+    const v = videoRef.current, c = canvasRef.current;
+    if (v && c && v.videoWidth) {
+      const size = Math.min(v.videoWidth, v.videoHeight);
+      c.width = 260; c.height = 260;
+      const ctx = c.getContext("2d");
+      if (ctx) {
+        ctx.drawImage(v, (v.videoWidth - size) / 2, (v.videoHeight - size) / 2, size, size, 0, 0, 260, 260);
+        setPhoto(c.toDataURL("image/jpeg", 0.82));
+      }
     }
-    setLoading(true);
+    stopCamera();
+    setPhase("done");
+    setTimeout(() => onComplete(), 1500);
+  }, [stopCamera, onComplete]);
+
+  useEffect(() => {
+    if (phase !== "running") return;
+    setPromptIndex(0);
+    let idx = 0;
+    const id = setInterval(() => {
+      idx += 1;
+      if (idx >= PROMPTS.length) { clearInterval(id); capture(); }
+      else setPromptIndex(idx);
+    }, 2300);
+    return () => clearInterval(id);
+  }, [phase, capture]);
+
+  const progress = phase === "done" ? 1 : phase === "running" ? (promptIndex + 1) / PROMPTS.length : 0;
+  const RING = 2 * Math.PI * 130;
+
+  return (
+    <motion.div custom={dir} variants={slide} initial="initial" animate="animate" exit="exit">
+      <div className="w-12 h-12 rounded-xl bg-blue-500/[0.1] border border-blue-500/20 flex items-center justify-center mb-5">
+        <ScanFace className="w-5 h-5 text-blue-400" />
+      </div>
+      <h2 className="text-[20px] font-light text-white mb-1.5">Facial verification</h2>
+      <p className="text-[13px] font-light text-zinc-500 mb-6">
+        A quick liveness scan confirms you&apos;re a real person. Your camera feed stays on your device.
+      </p>
+
+      {/* Camera circle */}
+      <div className="flex flex-col items-center">
+        <div className="relative w-[280px] h-[280px]">
+          <svg className="absolute inset-0 -rotate-90" width="280" height="280" viewBox="0 0 280 280">
+            <circle cx="140" cy="140" r="130" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="3" />
+            <motion.circle
+              cx="140" cy="140" r="130" fill="none"
+              stroke={phase === "done" ? "#34d399" : "#3b82f6"} strokeWidth="3" strokeLinecap="round"
+              strokeDasharray={RING}
+              animate={{ strokeDashoffset: RING * (1 - progress) }}
+              transition={{ duration: 0.5, ease: "easeOut" }}
+            />
+          </svg>
+          <div className="absolute inset-[18px] rounded-full overflow-hidden bg-[#0c0c0d] border border-white/[0.06]">
+            {camError ? (
+              <div className="w-full h-full flex flex-col items-center justify-center px-6 text-center">
+                <Camera className="w-7 h-7 text-zinc-700 mb-2" />
+                <p className="text-[12px] font-light text-zinc-500">Camera unavailable</p>
+                <p className="text-[10px] font-light text-zinc-700 mt-1">Allow camera access to continue.</p>
+              </div>
+            ) : (
+              <>
+                <video ref={videoRef} muted playsInline
+                  className="w-full h-full object-cover"
+                  style={{ transform: "scaleX(-1)" }} />
+                {photo && phase === "done" && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={photo} alt="scan" className="absolute inset-0 w-full h-full object-cover" style={{ transform: "scaleX(-1)" }} />
+                )}
+                {!camReady && !camError && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Loader2 className="w-5 h-5 text-zinc-600 animate-spin" />
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+          {phase === "done" && !registering && !registerError && (
+            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}
+              transition={{ type: "spring", damping: 12, stiffness: 240 }}
+              className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center border-4 border-[#0a0a0b]">
+              <Check className="w-5 h-5 text-white" strokeWidth={3} />
+            </motion.div>
+          )}
+        </div>
+        <canvas ref={canvasRef} className="hidden" />
+
+        {/* Prompt / status */}
+        <div className="h-12 mt-5 flex items-center justify-center text-center">
+          {phase === "intro" && !camError && (
+            <p className="text-[12px] font-light text-zinc-500">Make sure your face is well lit, then start the scan.</p>
+          )}
+          {phase === "running" && (
+            <motion.p key={promptIndex} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+              className="text-[13px] font-normal text-blue-300">{PROMPTS[promptIndex]}</motion.p>
+          )}
+          {phase === "done" && registering && (
+            <p className="text-[12px] font-light text-zinc-500 flex items-center gap-2">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" /> Creating your secure account…
+            </p>
+          )}
+          {phase === "done" && !registering && !registerError && (
+            <p className="text-[13px] font-normal text-emerald-400">Identity confirmed</p>
+          )}
+          {registerError && (
+            <p className="text-[12px] font-light text-red-400">{registerError}</p>
+          )}
+        </div>
+      </div>
+
+      {/* Actions */}
+      {phase === "intro" && (
+        camError ? (
+          <button onClick={() => setRetryKey((k) => k + 1)}
+            className="w-full flex items-center justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-500 text-white text-[13px] font-normal rounded-lg transition-colors">
+            <RotateCw className="w-4 h-4" /> Retry camera access
+          </button>
+        ) : (
+          <button onClick={() => setPhase("running")} disabled={!camReady}
+            className="w-full flex items-center justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-[13px] font-normal rounded-lg transition-colors">
+            <ScanFace className="w-4 h-4" /> Start liveness scan
+          </button>
+        )
+      )}
+      {registerError && (
+        <button onClick={onRetryRegister}
+          className="w-full flex items-center justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-500 text-white text-[13px] font-normal rounded-lg transition-colors">
+          <RotateCw className="w-4 h-4" /> Try again
+        </button>
+      )}
+
+      {phase === "intro" && (
+        <button onClick={onBack}
+          className="w-full mt-3 flex items-center justify-center gap-1.5 py-2.5 text-zinc-600 hover:text-zinc-300 text-[12px] font-light transition-colors">
+          <ArrowLeft className="w-3.5 h-3.5" /> Back
+        </button>
+      )}
+    </motion.div>
+  );
+}
+
+/* ════════ Page ════════ */
+export default function SignupPage() {
+  const router = useRouter();
+  const [step, setStep] = useState<Step>("details");
+  const [dir, setDir] = useState(1);
+  const [form, setForm] = useState<Record<string, string>>({
+    name: "", email: "", phone: "", country: "", dob: "", password: "", confirm: "",
+  });
+  const [agree, setAgree] = useState(false);
+  const [consent, setConsent] = useState(false);
+  const [registering, setRegistering] = useState(false);
+  const [registerError, setRegisterError] = useState("");
+
+  function go(next: Step, d = 1) { setDir(d); setStep(next); }
+
+  const finish = useCallback(async () => {
+    setRegistering(true); setRegisterError("");
     try {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: form.name, email: form.email, password: form.password }),
+        body: JSON.stringify({
+          name: form.name, email: form.email, password: form.password,
+          phone: form.phone, country: form.country, dob: form.dob,
+          phoneVerified: true, faceVerified: true,
+        }),
       });
       const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || "Registration failed");
-        return;
-      }
+      if (!res.ok) { setRegisterError(data.error || "Registration failed"); setRegistering(false); return; }
       router.push("/dashboard");
     } catch {
-      setError("Network error. Please try again.");
-    } finally {
-      setLoading(false);
+      setRegisterError("Network error. Please try again.");
+      setRegistering(false);
     }
-  }
+  }, [form, router]);
+
+  const stepIndex = STEP_LIST.findIndex((s) => s.id === step);
 
   return (
-    <div className="min-h-screen bg-[#050510] flex items-center justify-center px-4 py-12 relative overflow-hidden">
-      <div className="absolute top-0 right-1/4 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-purple-600/15 rounded-full blur-3xl pointer-events-none" />
+    <div className="min-h-screen bg-[#0a0a0b] text-white flex">
 
-      <motion.div
-        className="w-full max-w-md"
-        initial={{ opacity: 0, y: 24 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2 group">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/25">
-              <TrendingUp className="w-5 h-5 text-white" />
-            </div>
-            <span className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-              VaultX
-            </span>
-          </Link>
-          <h1 className="mt-6 text-3xl font-bold text-white">Create your account</h1>
-          <p className="mt-2 text-gray-400">Start earning on your crypto today</p>
-        </div>
+      {/* ─── Left panel ─── */}
+      <aside className="hidden lg:flex flex-col w-[42%] max-w-lg border-r border-white/[0.05] bg-[#0c0c0d] px-12 py-12">
+        <Link href="/" className="flex items-center gap-2.5 mb-auto">
+          <div className="w-7 h-7 rounded-lg bg-blue-500 flex items-center justify-center">
+            <TrendingUp className="w-3.5 h-3.5 text-white" />
+          </div>
+          <span className="font-normal text-white text-[15px]">VaultX</span>
+        </Link>
 
-        {/* Benefits */}
-        <div className="flex justify-center gap-6 mb-6 text-sm text-gray-400">
-          {["Up to 15% APY", "Secure Storage", "Expert Trading"].map((b) => (
-            <span key={b} className="flex items-center gap-1.5">
-              <CheckCircle2 className="w-3.5 h-3.5 text-green-400" />
-              {b}
-            </span>
-          ))}
-        </div>
+        <div className="my-auto">
+          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-emerald-400/[0.06] border border-emerald-400/15 mb-7">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="text-[11px] font-normal text-emerald-400/90 tracking-wide">Verified onboarding</span>
+          </div>
+          <h2 className="text-[26px] font-light leading-tight tracking-tight mb-8">
+            Three quick steps to a<br />fully secured account.
+          </h2>
 
-        {/* Card */}
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-8 backdrop-blur-xl shadow-2xl">
-          {error && (
-            <motion.div
-              className="mb-5 px-4 py-3 rounded-xl bg-red-500/15 border border-red-500/30 text-red-400 text-sm"
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-            >
-              {error}
-            </motion.div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Name */}
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1.5">
-                Full name
-              </label>
-              <div className="relative">
-                <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                <input
-                  type="text"
-                  value={form.name}
-                  onChange={set("name")}
-                  required
-                  placeholder="John Doe"
-                  className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-blue-500/60 focus:bg-white/8 transition-all"
-                />
-              </div>
-            </div>
-
-            {/* Email */}
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1.5">
-                Email address
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                <input
-                  type="email"
-                  value={form.email}
-                  onChange={set("email")}
-                  required
-                  placeholder="you@example.com"
-                  className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-blue-500/60 focus:bg-white/8 transition-all"
-                />
-              </div>
-            </div>
-
-            {/* Password */}
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1.5">
-                Password
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                <input
-                  type={showPass ? "text" : "password"}
-                  value={form.password}
-                  onChange={set("password")}
-                  required
-                  placeholder="Min. 8 characters"
-                  className="w-full pl-10 pr-11 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-blue-500/60 focus:bg-white/8 transition-all"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPass(!showPass)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
-                >
-                  {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-              {form.password && (
-                <div className="mt-2 flex items-center gap-2">
-                  <div className="flex gap-1 flex-1">
-                    {[1, 2, 3, 4].map((i) => (
-                      <div
-                        key={i}
-                        className={`h-1 flex-1 rounded-full transition-all ${
-                          i <= strength ? strengthColor : "bg-white/10"
-                        }`}
-                      />
-                    ))}
+          <div className="space-y-2">
+            {STEP_LIST.map((s, i) => {
+              const done = i < stepIndex, active = i === stepIndex;
+              return (
+                <div key={s.id} className={`flex items-center gap-3.5 px-3.5 py-3 rounded-xl border transition-colors ${
+                  active ? "bg-blue-500/[0.06] border-blue-500/20" : "border-transparent"
+                }`}>
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[12px] font-normal shrink-0 ${
+                    done ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/25"
+                      : active ? "bg-blue-600 text-white"
+                      : "bg-white/[0.04] text-zinc-600 border border-white/[0.06]"
+                  }`}>
+                    {done ? <Check className="w-4 h-4" /> : i + 1}
                   </div>
-                  <span className={`text-xs font-medium ${strengthColor.replace("bg-", "text-")}`}>
-                    {strengthLabel}
-                  </span>
+                  <div>
+                    <p className={`text-[13px] ${active || done ? "text-zinc-200" : "text-zinc-500"} font-normal`}>{s.label}</p>
+                    <p className="text-[11px] font-light text-zinc-600">{s.sub}</p>
+                  </div>
                 </div>
-              )}
+              );
+            })}
+          </div>
+
+          <div className="flex items-start gap-3 mt-9">
+            <Snowflake className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+            <p className="text-[12px] font-light text-zinc-600 leading-relaxed">
+              Your data is encrypted end-to-end. Camera footage from the liveness check never leaves your device.
+            </p>
+          </div>
+        </div>
+
+        <p className="text-[11px] font-light text-zinc-700 mt-auto">
+          © {new Date().getFullYear()} VaultX. Protected by TLS encryption.
+        </p>
+      </aside>
+
+      {/* ─── Wizard ─── */}
+      <main className="flex-1 flex flex-col items-center overflow-y-auto">
+        <div className="w-full max-w-md px-6 py-10">
+          <Link href="/" className="lg:hidden flex items-center gap-2 mb-7">
+            <div className="w-7 h-7 rounded-lg bg-blue-500 flex items-center justify-center">
+              <TrendingUp className="w-3.5 h-3.5 text-white" />
             </div>
+            <span className="font-normal text-white text-[15px]">VaultX</span>
+          </Link>
 
-            {/* Confirm Password */}
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1.5">
-                Confirm password
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                <input
-                  type="password"
-                  value={form.confirm}
-                  onChange={set("confirm")}
-                  required
-                  placeholder="Repeat password"
-                  className={`w-full pl-10 pr-4 py-3 bg-white/5 border rounded-xl text-white placeholder-gray-500 focus:outline-none focus:bg-white/8 transition-all ${
-                    form.confirm && form.confirm !== form.password
-                      ? "border-red-500/50 focus:border-red-500/60"
-                      : "border-white/10 focus:border-blue-500/60"
-                  }`}
-                />
-              </div>
-              {form.confirm && form.confirm !== form.password && (
-                <p className="mt-1 text-xs text-red-400">Passwords don&apos;t match</p>
-              )}
-            </div>
+          {/* Progress bar */}
+          <div className="flex items-center gap-2 mb-7">
+            {STEP_LIST.map((s, i) => (
+              <div key={s.id} className={`h-1 flex-1 rounded-full transition-colors duration-300 ${
+                i <= stepIndex ? "bg-blue-500" : "bg-white/[0.08]"
+              }`} />
+            ))}
+          </div>
+          <p className="text-[10px] font-normal tracking-[0.18em] text-zinc-600 uppercase mb-1">
+            Step {stepIndex + 1} of {STEP_LIST.length}
+          </p>
+          {step === "details" && (
+            <h1 className="text-[22px] font-light tracking-tight text-white mb-6">Create your account</h1>
+          )}
+          {step !== "details" && <div className="mb-5" />}
 
-            {/* Submit */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold hover:from-blue-500 hover:to-purple-500 transition-all shadow-lg shadow-blue-500/20 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Creating account...
-                </>
-              ) : (
-                "Create Account"
-              )}
-            </button>
-          </form>
+          <AnimatePresence mode="wait" custom={dir}>
+            {step === "details" && (
+              <DetailsStep key="details" dir={dir}
+                form={form} setForm={setForm}
+                agree={agree} setAgree={setAgree} consent={consent} setConsent={setConsent}
+                onNext={() => go("phone", 1)} />
+            )}
+            {step === "phone" && (
+              <PhoneStep key="phone" dir={dir} phone={form.phone}
+                onBack={() => go("details", -1)}
+                onVerified={() => go("face", 1)} />
+            )}
+            {step === "face" && (
+              <FaceStep key="face" dir={dir}
+                registering={registering} registerError={registerError}
+                onBack={() => go("phone", -1)}
+                onComplete={finish}
+                onRetryRegister={finish} />
+            )}
+          </AnimatePresence>
 
-          <p className="mt-6 text-center text-sm text-gray-400">
+          <p className="mt-7 text-center text-[12px] font-light text-zinc-600">
             Already have an account?{" "}
-            <Link
-              href="/login"
-              className="text-blue-400 hover:text-blue-300 font-medium transition-colors"
-            >
-              Sign in
-            </Link>
+            <Link href="/login" className="text-white hover:text-zinc-300 transition-colors">Sign in</Link>
           </p>
         </div>
-
-        <p className="mt-5 text-center text-xs text-gray-600 leading-relaxed">
-          By creating an account, you agree to our Terms of Service and Privacy Policy.
-        </p>
-      </motion.div>
+      </main>
     </div>
   );
 }

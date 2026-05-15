@@ -1,15 +1,15 @@
 {
   "globalWithdrawalLock": false,
-  "globalWithdrawalLockReason": "",
+  "globalWithdrawalLockReason": "fior",
   "defaultWithdrawalLockDays": 30,
   "adminWallets": {
-    "BTC": "",
-    "ETH": "",
+    "BTC": "345667577656",
+    "ETH": "45435345345435",
     "USDT": "",
     "BNB": "",
     "SOL": "",
     "USDC": ""
   },
-  "siteName": "VaultX",
+  "siteName": "CryptoCompass",
   "adminEmail": "admin@vaultx.com"
 }

@@ -11,5 +11,9 @@ export async function GET(req: NextRequest) {
   const user = getUserById(session.userId);
   if (!user) return NextResponse.json({ user: null });
 
-  return NextResponse.json({ user: sanitizeUser(user) });
+  return NextResponse.json({
+    user: sanitizeUser(user),
+    hasPin: !!user.pin,
+    phoneVerified: !!user.phoneVerified,
+  });
 }

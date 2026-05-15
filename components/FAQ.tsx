@@ -1,89 +1,72 @@
 "use client";
 
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
+import { Plus } from "lucide-react";
 
-
-const faqs = [
-  {
-    question: "How does VaultX work?",
-    answer:
-      "You deposit your crypto to our designated wallet address, and our expert trading team allocates it across proven strategies to generate consistent returns. Your earnings are credited to your account and available at the end of your lock-up period.",
-  },
-  {
-    question: "What coins can I deposit?",
-    answer:
-      "We currently support Bitcoin (BTC), Ethereum (ETH), Tether (USDT), BNB, Solana (SOL), and USD Coin (USDC). We're actively expanding our supported asset list.",
-  },
-  {
-    question: "How long is my funds locked?",
-    answer:
-      "The default lock-up period is 30 days from your first confirmed deposit. This allows our trading strategies time to compound your returns. The administrator may also set custom lock periods per account.",
-  },
-  {
-    question: "How do I initiate a withdrawal?",
-    answer:
-      "Once your lock-up period has ended, go to the Withdraw section of your dashboard. Enter the amount and your wallet address. Our team processes all withdrawal requests within 24–48 hours.",
-  },
-  {
-    question: "How are earnings calculated?",
-    answer:
-      "Earnings are calculated by our trading team based on portfolio performance and credited directly to your account balance. You can track your principal and earnings separately in your dashboard.",
-  },
-  {
-    question: "Is my investment secure?",
-    answer:
-      "All deposits are held securely by the platform. Our trading strategies are managed by experienced professionals focused on capital preservation and growth. We use industry-standard security practices to protect your account.",
-  },
+const FAQS = [
+  { q: "How does VaultX work?",         a: "Deposit crypto to our wallet, submit your transaction hash, and our trading team manages your funds. Earnings are credited daily. Withdraw anytime after your lock-up ends." },
+  { q: "Which coins can I deposit?",    a: "Bitcoin (BTC), Ethereum (ETH), Tether (USDT), BNB, Solana (SOL), and USD Coin (USDC). Wallet addresses are shown in your dashboard after signup." },
+  { q: "How long is the lock-up?",      a: "Default is 30 days from your first confirmed deposit. Growth and Premium tiers offer flexible options. Admins can set custom periods per account." },
+  { q: "How do I withdraw?",            a: "Go to the Withdraw tab on your dashboard, enter the amount and your wallet address, and submit. Processed within 24–48 hours." },
+  { q: "How are earnings calculated?",  a: "Our trading team credits earnings directly to your account. You can see principal and earned interest as separate line items at all times." },
+  { q: "What is a withdrawal lock?",    a: "Admins can temporarily pause withdrawals platform-wide or per account. You'll always see the reason and expected timeline on your dashboard." },
 ];
 
 export default function FAQ() {
-  const [activeIndex, setActiveIndex] = useState<number | null>(null);
-
-  const toggle = (index: number) => {
-    setActiveIndex(activeIndex === index ? null : index);
-  };
+  const [open, setOpen] = useState<number | null>(null);
 
   return (
-    <section className="py-24 bg-gray-950 text-white">
-      <div className="max-w-6xl mx-auto px-6">
-        <h2 className="text-5xl font-extrabold text-center mb-16">
-          Frequently Asked Questions
-        </h2>
+    <section className="bg-[#161618] py-28 px-6" id="faq">
+      <div className="max-w-3xl mx-auto">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.7 }}
+          className="mb-12"
+        >
+          <p className="text-[11px] font-light tracking-widest text-zinc-600 uppercase mb-3">FAQ</p>
+          <h2 className="text-[clamp(30px,4.5vw,52px)] font-light text-white tracking-tight leading-tight">
+            Common questions.
+          </h2>
+        </motion.div>
 
-        <div className="grid md:grid-cols-2 gap-8">
-          {faqs.map((faq, i) => (
-            <motion.div
-              key={i}
-              className="bg-gray-800/40 backdrop-blur-xl rounded-3xl p-6 cursor-pointer shadow-lg hover:shadow-2xl transition-all duration-300"
-              whileHover={{ scale: 1.03 }}
-              onClick={() => toggle(i)}
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: i * 0.2 }}
-            >
-              <div className="flex items-center gap-3">
-                <span className="text-blue-400 text-xl mr-2">💬</span>
-                <h3 className="text-lg md:text-xl font-semibold text-white">
-                  {faq.question}
-                </h3>
-              </div>
+        <div className="border border-white/[0.05] rounded-2xl overflow-hidden divide-y divide-white/[0.05]">
+          {FAQS.map((faq, i) => (
+            <div key={i} className="bg-[#161618] hover:bg-[#1a1a1e] transition-colors">
+              <button
+                onClick={() => setOpen(open === i ? null : i)}
+                className="w-full flex items-center justify-between gap-4 px-6 py-5 text-left group"
+              >
+                <span className={`text-[14px] font-light leading-snug transition-colors ${open === i ? "text-white" : "text-zinc-400 group-hover:text-zinc-200"}`}>
+                  {faq.q}
+                </span>
+                <motion.span
+                  animate={{ rotate: open === i ? 45 : 0 }}
+                  transition={{ duration: 0.2 }}
+                  className={`shrink-0 transition-colors ${open === i ? "text-blue-400" : "text-zinc-700"}`}
+                >
+                  <Plus className="w-4 h-4" />
+                </motion.span>
+              </button>
 
               <AnimatePresence>
-                {activeIndex === i && (
+                {open === i && (
                   <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.4 }}
-                    className="mt-4 text-gray-300 text-base md:text-lg"
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.22 }}
+                    className="overflow-hidden"
                   >
-                    {faq.answer}
+                    <p className="px-6 pb-5 text-[13px] font-light text-zinc-500 leading-relaxed">
+                      {faq.a}
+                    </p>
                   </motion.div>
                 )}
               </AnimatePresence>
-            </motion.div>
+            </div>
           ))}
         </div>
       </div>

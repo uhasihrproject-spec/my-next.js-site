@@ -60,6 +60,13 @@ export interface User {
   withdrawalUnlockDate: string | null;
   customLock: boolean;
   createdAt: string;
+  /* ─ Optional profile / security fields ─ */
+  phone?: string;
+  country?: string;
+  dob?: string;
+  pin?: string;            // hashed 6-digit PIN
+  phoneVerified?: boolean;
+  faceVerified?: boolean;
 }
 
 export interface Settings {
@@ -259,8 +266,79 @@ export function canWithdraw(
   return { allowed: true };
 }
 
-export function sanitizeUser(user: User): Omit<User, "password"> {
+export function sanitizeUser(user: User): Omit<User, "password" | "pin"> {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { password: _pw, ...rest } = user;
+  const { password: _pw, pin: _pin, ...rest } = user;
   return rest;
+}
+
+// ─── Phone OTP (one-time codes) ───────────────────────────────────────────────
+
+interface OtpEntry {
+  phone: string;
+  code: string;
+  expiresAt: number;
+}
+
+function normalizePhone(phone: string): string {
+  return phone.replace(/\D/g, "");
+}
+
+/** Store a 6-digit code for a phone number (10-minute expiry). */
+export function saveOtp(phone: string, code: string): void {
+  const key = normalizePhone(phone);
+  const now = Date.now();
+  const otps = readFile<OtpEntry[]>("otps.json", [])
+    .filter((o) => o.phone !== key && o.expiresAt > now);
+  otps.push({ phone: key, code, expiresAt: now + 10 * 60 * 1000 });
+  writeFile("otps.json", otps);
+}
+
+/** Verify a code for a phone number. Consumes the code on success. */
+export function checkOtp(phone: string, code: string): boolean {
+  const key = normalizePhone(phone);
+  const otps = readFile<OtpEntry[]>("otps.json", []);
+  const entry = otps.find((o) => o.phone === key);
+  if (!entry || entry.expiresAt < Date.now() || entry.code !== code) return false;
+  writeFile("otps.json", otps.filter((o) => o.phone !== key));
+  return true;
+}
+
+// ─── Chat Messages ────────────────────────────────────────────────────────────
+
+export interface ChatMessage {
+  id: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  text: string;
+  from: "user" | "admin";
+  createdAt: string;
+  read: boolean;
+}
+
+export function getMessages(): ChatMessage[] {
+  return readFile<ChatMessage[]>("messages.json", []);
+}
+
+export function saveMessages(messages: ChatMessage[]): void {
+  writeFile("messages.json", messages);
+}
+
+export function getMessagesByUser(userId: string): ChatMessage[] {
+  return getMessages().filter((m) => m.userId === userId);
+}
+
+export function createMessage(
+  data: Omit<ChatMessage, "id" | "createdAt">
+): ChatMessage {
+  const message: ChatMessage = {
+    ...data,
+    id: generateId(),
+    createdAt: new Date().toISOString(),
+  };
+  const messages = getMessages();
+  messages.push(message);
+  saveMessages(messages);
+  return message;
 }

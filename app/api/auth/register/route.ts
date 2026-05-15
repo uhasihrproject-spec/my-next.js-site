@@ -3,7 +3,7 @@ import { getUserByEmail, hashPassword, createSession, createUser } from "@/lib/d
 
 export async function POST(req: NextRequest) {
   try {
-    const { name, email, password } = await req.json();
+    const { name, email, password, phone, country, dob, phoneVerified, faceVerified } = await req.json();
 
     if (!name || !email || !password) {
       return NextResponse.json(
@@ -41,6 +41,11 @@ export async function POST(req: NextRequest) {
       withdrawals: [],
       withdrawalUnlockDate: null,
       customLock: false,
+      phone: typeof phone === "string" ? phone.trim() : undefined,
+      country: typeof country === "string" ? country : undefined,
+      dob: typeof dob === "string" ? dob : undefined,
+      phoneVerified: !!phoneVerified,
+      faceVerified: !!faceVerified,
     });
 
     const token = createSession(user.id);

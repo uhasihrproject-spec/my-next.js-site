@@ -1,27 +1,35 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useState, useEffect } from "react";
-import { usePathname, useRouter } from "next/navigation";
-import { TrendingUp, Menu, X, LayoutDashboard, LogOut, Shield } from "lucide-react";
+import { useRouter } from "next/navigation";
 
-interface AuthUser {
-  name: string;
-  role: string;
-}
+const LINKS = [
+  { label: "Features", href: "/#features" },
+  { label: "Assets", href: "/#assets" },
+  { label: "Pricing", href: "/#pricing" },
+  { label: "FAQ", href: "/#faq" },
+];
 
 export default function Navbar() {
-  const [isOpen, setIsOpen] = useState(false);
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const pathname = usePathname();
+  const [scrolled, setScrolled] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [user, setUser] = useState<{ name: string; role: string } | null>(null);
   const router = useRouter();
+
+  useEffect(() => {
+    const fn = () => setScrolled(window.scrollY > 20);
+    window.addEventListener("scroll", fn, { passive: true });
+    fn();
+    return () => window.removeEventListener("scroll", fn);
+  }, []);
 
   useEffect(() => {
     fetch("/api/auth/me")
       .then((r) => r.json())
-      .then((d) => setUser(d.user ? { name: d.user.name, role: d.user.role } : null))
-      .catch(() => setUser(null));
-  }, [pathname]);
+      .then((d) => setUser(d.user || null))
+      .catch(() => null);
+  }, []);
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -29,144 +37,88 @@ export default function Navbar() {
     router.push("/");
   }
 
-  const linkClass = (href: string) =>
-    `transition-colors duration-200 ${
-      pathname === href ? "text-blue-400 font-semibold" : "text-gray-300 hover:text-white"
-    }`;
-
   return (
-    <nav className="fixed top-0 left-0 w-full z-50 backdrop-blur-md bg-[#050510]/80 border-b border-white/8 transition-all duration-300">
-      <div className="max-w-7xl mx-auto px-6 sm:px-10">
-        <div className="flex justify-between items-center h-18 py-4">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/25">
-              <TrendingUp className="w-4 h-4 text-white" />
-            </div>
-            <span className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-              VaultX
-            </span>
-          </Link>
+    <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
+      scrolled ? "bg-[#161618]/90 backdrop-blur-xl border-b border-white/[0.05]" : "bg-transparent"
+    }`}>
+      <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
 
-          {/* Desktop Links */}
-          <div className="hidden md:flex items-center gap-7 text-sm font-medium">
-            <Link href="/features" className={linkClass("/features")}>Features</Link>
-            <Link href="/stats" className={linkClass("/stats")}>Live Stats</Link>
-            <Link href="/faq" className={linkClass("/faq")}>FAQ</Link>
-
-            {user ? (
-              <>
-                <Link
-                  href={user.role === "admin" ? "/admin" : "/dashboard"}
-                  className="flex items-center gap-1.5 text-gray-300 hover:text-white transition-colors"
-                >
-                  {user.role === "admin" ? (
-                    <Shield className="w-3.5 h-3.5 text-yellow-400" />
-                  ) : (
-                    <LayoutDashboard className="w-3.5 h-3.5 text-blue-400" />
-                  )}
-                  {user.role === "admin" ? "Admin" : "Dashboard"}
-                </Link>
-                <button
-                  onClick={logout}
-                  className="flex items-center gap-1.5 text-gray-400 hover:text-red-400 transition-colors"
-                >
-                  <LogOut className="w-3.5 h-3.5" />
-                  Sign out
-                </button>
-              </>
-            ) : (
-              <>
-                <Link href="/login" className={linkClass("/login")}>Login</Link>
-                <Link
-                  href="/signup"
-                  className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-xl hover:from-blue-500 hover:to-purple-500 transition-all shadow-lg shadow-blue-500/20 text-sm"
-                >
-                  Get Started
-                </Link>
-              </>
-            )}
+        <Link href="/" className="flex items-center gap-2.5">
+          <div className="w-6 h-6 rounded-md bg-blue-500 flex items-center justify-center">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <rect x="0.5" y="0.5" width="4.5" height="4.5" rx="0.5" fill="white"/>
+              <rect x="7" y="0.5" width="4.5" height="4.5" rx="0.5" fill="white" opacity="0.5"/>
+              <rect x="0.5" y="7" width="4.5" height="4.5" rx="0.5" fill="white" opacity="0.5"/>
+              <rect x="7" y="7" width="4.5" height="4.5" rx="0.5" fill="white" opacity="0.25"/>
+            </svg>
           </div>
+          <span className="text-white font-medium text-[15px] tracking-wide">VaultX</span>
+        </Link>
 
-          {/* Mobile menu button */}
-          <button
-            className="md:hidden p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
-            onClick={() => setIsOpen(!isOpen)}
-            aria-label="Toggle menu"
-          >
-            {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </button>
+        <nav className="hidden md:flex items-center gap-0.5">
+          {LINKS.map((n) => (
+            <Link key={n.label} href={n.href}
+              className="px-4 py-2 text-[13px] font-light text-zinc-500 hover:text-zinc-200 rounded-lg hover:bg-white/[0.04] transition-all">
+              {n.label}
+            </Link>
+          ))}
+        </nav>
+
+        <div className="hidden md:flex items-center gap-2">
+          {user ? (
+            <>
+              <Link href={user.role === "admin" ? "/admin" : "/dashboard"}
+                className="px-4 py-2 text-[13px] font-light text-zinc-400 hover:text-white transition-colors">
+                {user.role === "admin" ? "Admin" : "Dashboard"}
+              </Link>
+              <button onClick={logout} className="px-4 py-2 text-[13px] font-light text-zinc-600 hover:text-zinc-400 transition-colors">
+                Sign out
+              </button>
+            </>
+          ) : (
+            <>
+              <Link href="/login" className="px-4 py-2 text-[13px] font-light text-zinc-500 hover:text-zinc-200 transition-colors">
+                Log in
+              </Link>
+              <Link href="/signup"
+                className="px-4 py-2 text-[13px] font-normal bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors">
+                Get started
+              </Link>
+            </>
+          )}
         </div>
+
+        <button onClick={() => setOpen(!open)} className="md:hidden flex flex-col gap-[5px] w-9 h-9 items-center justify-center" aria-label="Menu">
+          <span className={`h-px w-5 bg-zinc-400 transition-all ${open ? "rotate-45 translate-y-[7px]" : ""}`} />
+          <span className={`h-px w-5 bg-zinc-400 transition-all ${open ? "opacity-0" : ""}`} />
+          <span className={`h-px w-5 bg-zinc-400 transition-all ${open ? "-rotate-45 -translate-y-[7px]" : ""}`} />
+        </button>
       </div>
 
-      {/* Mobile menu */}
-      {isOpen && (
-        <div className="md:hidden px-6 pb-5 bg-[#050510]/95 backdrop-blur-md border-t border-white/8 text-sm">
-          <div className="flex flex-col gap-1 pt-3">
-            {[
-              { href: "/features", label: "Features" },
-              { href: "/stats", label: "Live Stats" },
-              { href: "/faq", label: "FAQ" },
-            ].map(({ href, label }) => (
-              <Link
-                key={href}
-                href={href}
-                onClick={() => setIsOpen(false)}
-                className={`px-3 py-2.5 rounded-xl font-medium transition-colors ${
-                  pathname === href
-                    ? "bg-blue-600/20 text-blue-400"
-                    : "text-gray-300 hover:text-white hover:bg-white/5"
-                }`}
-              >
-                {label}
+      <div className={`md:hidden overflow-hidden transition-all duration-300 ${open ? "max-h-80" : "max-h-0"} bg-[#161618] border-b border-white/[0.05]`}>
+        <div className="px-6 pt-2 pb-5 flex flex-col gap-0.5">
+          {LINKS.map((n) => (
+            <Link key={n.label} href={n.href} onClick={() => setOpen(false)}
+              className="py-2.5 text-[13px] font-light text-zinc-500 hover:text-white">
+              {n.label}
+            </Link>
+          ))}
+          <div className="h-px bg-white/[0.05] my-2" />
+          {user ? (
+            <>
+              <Link href={user.role === "admin" ? "/admin" : "/dashboard"} onClick={() => setOpen(false)} className="py-2.5 text-[13px] font-light text-zinc-400">
+                {user.role === "admin" ? "Admin Panel" : "Dashboard"}
               </Link>
-            ))}
-
-            <div className="border-t border-white/8 mt-2 pt-2">
-              {user ? (
-                <>
-                  <Link
-                    href={user.role === "admin" ? "/admin" : "/dashboard"}
-                    onClick={() => setIsOpen(false)}
-                    className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-gray-300 hover:text-white hover:bg-white/5 transition-colors"
-                  >
-                    {user.role === "admin" ? (
-                      <Shield className="w-4 h-4 text-yellow-400" />
-                    ) : (
-                      <LayoutDashboard className="w-4 h-4 text-blue-400" />
-                    )}
-                    {user.role === "admin" ? "Admin Panel" : "My Dashboard"}
-                  </Link>
-                  <button
-                    onClick={() => { logout(); setIsOpen(false); }}
-                    className="flex items-center gap-2 w-full px-3 py-2.5 rounded-xl text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    Sign out
-                  </button>
-                </>
-              ) : (
-                <>
-                  <Link
-                    href="/login"
-                    onClick={() => setIsOpen(false)}
-                    className="block px-3 py-2.5 rounded-xl text-gray-300 hover:text-white hover:bg-white/5 transition-colors"
-                  >
-                    Login
-                  </Link>
-                  <Link
-                    href="/signup"
-                    onClick={() => setIsOpen(false)}
-                    className="block mt-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-xl text-center"
-                  >
-                    Get Started
-                  </Link>
-                </>
-              )}
-            </div>
-          </div>
+              <button onClick={() => { logout(); setOpen(false); }} className="py-2.5 text-[13px] font-light text-zinc-600 text-left">Sign out</button>
+            </>
+          ) : (
+            <>
+              <Link href="/login" onClick={() => setOpen(false)} className="py-2.5 text-[13px] font-light text-zinc-500">Log in</Link>
+              <Link href="/signup" onClick={() => setOpen(false)} className="mt-1 py-2.5 text-[13px] font-normal bg-blue-600 text-white rounded-lg text-center">Get started</Link>
+            </>
+          )}
         </div>
-      )}
-    </nav>
+      </div>
+    </header>
   );
 }

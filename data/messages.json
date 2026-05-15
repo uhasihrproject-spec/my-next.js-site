@@ -1,0 +1,62 @@
+[
+  {
+    "userId": "a91ef847-e77a-420a-8b61-c8329ee99e43",
+    "userName": "Eldwin Asante",
+    "userEmail": "uhasihrproject@gmail.com",
+    "text": "hi",
+    "from": "user",
+    "read": true,
+    "id": "5af4403c-f6ee-4995-8db9-04e9dbb820c7",
+    "createdAt": "2026-05-14T10:13:12.002Z"
+  },
+  {
+    "userId": "a91ef847-e77a-420a-8b61-c8329ee99e43",
+    "userName": "Eldwin Asante",
+    "userEmail": "uhasihrproject@gmail.com",
+    "text": "hello",
+    "from": "admin",
+    "read": true,
+    "id": "9ad9b53b-770e-4790-8147-eae47b75e825",
+    "createdAt": "2026-05-14T10:15:17.879Z"
+  },
+  {
+    "userId": "a91ef847-e77a-420a-8b61-c8329ee99e43",
+    "userName": "Eldwin Asante",
+    "userEmail": "uhasihrproject@gmail.com",
+    "text": "hyd",
+    "from": "admin",
+    "read": true,
+    "id": "cefac27c-4982-4f71-8e74-3109d8fe3c2c",
+    "createdAt": "2026-05-14T10:15:24.595Z"
+  },
+  {
+    "userId": "a91ef847-e77a-420a-8b61-c8329ee99e43",
+    "userName": "Eldwin Asante",
+    "userEmail": "uhasihrproject@gmail.com",
+    "text": "I am good",
+    "from": "user",
+    "read": true,
+    "id": "0a206c77-2adc-4a3d-9f3f-0c1c63d5f4ba",
+    "createdAt": "2026-05-14T10:27:24.563Z"
+  },
+  {
+    "userId": "a91ef847-e77a-420a-8b61-c8329ee99e43",
+    "userName": "Eldwin Asante",
+    "userEmail": "uhasihrproject@gmail.com",
+    "text": "Good to hear",
+    "from": "admin",
+    "read": true,
+    "id": "cde63a74-01e1-4996-bc03-523260d39098",
+    "createdAt": "2026-05-14T10:27:51.366Z"
+  },
+  {
+    "userId": "a91ef847-e77a-420a-8b61-c8329ee99e43",
+    "userName": "Eldwin Asante",
+    "userEmail": "uhasihrproject@gmail.com",
+    "text": "hii",
+    "from": "user",
+    "read": false,
+    "id": "14b2d81d-0a77-4428-9980-2cce68f2543c",
+    "createdAt": "2026-05-15T03:57:17.418Z"
+  }
+]

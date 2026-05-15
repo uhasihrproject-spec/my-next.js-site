@@ -1,142 +1,159 @@
 "use client";
 
-import { motion } from "framer-motion";
 import Link from "next/link";
-import { ArrowRight, Shield, TrendingUp, Lock } from "lucide-react";
+import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 
-const circles = [
-  { color: "bg-blue-600/25", size: "w-80 h-80", x: -300, y: -120 },
-  { color: "bg-purple-600/20", size: "w-64 h-64", x: 280, y: -180 },
-  { color: "bg-blue-500/15", size: "w-96 h-96", x: -200, y: 200 },
-  { color: "bg-indigo-500/20", size: "w-48 h-48", x: 320, y: 160 },
-];
-
-const stats = [
-  { label: "Supported Coins", value: "6+" },
-  { label: "Avg. Annual Returns", value: "Up to 15%" },
-  { label: "Withdrawal Processing", value: "24–48h" },
+const CHIPS = [
+  { label: "BTC", color: "#f7931a", val: "+18% APY" },
+  { label: "ETH", color: "#627eea", val: "Live tracking" },
+  { label: "SOL", color: "#9945ff", val: "2,400+ users" },
 ];
 
 export default function Hero() {
+  const [user, setUser] = useState<{ name: string; role: string } | null>(null);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((r) => r.json())
+      .then((d) => { setUser(d.user || null); setLoaded(true); })
+      .catch(() => setLoaded(true));
+  }, []);
+
   return (
-    <section className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#050510] text-center px-4">
-      {/* Animated background circles */}
-      {circles.map((circle, index) => (
-        <motion.div
-          key={index}
-          className={`absolute rounded-full blur-3xl ${circle.color} ${circle.size}`}
-          initial={{ x: circle.x, y: circle.y }}
-          animate={{
-            x: [circle.x, circle.x * -0.4, circle.x],
-            y: [circle.y, circle.y * -0.4, circle.y],
-          }}
-          transition={{
-            duration: 18 + index * 5,
-            repeat: Infinity,
-            repeatType: "mirror",
-            ease: "easeInOut",
-          }}
-        />
-      ))}
+    <section className="relative min-h-screen bg-[#161618] flex items-center overflow-hidden pt-16">
+      {/* Subtle grid */}
+      <div className="pointer-events-none absolute inset-0 opacity-[0.018]"
+        style={{ backgroundImage: "linear-gradient(rgba(255,255,255,1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,1) 1px, transparent 1px)", backgroundSize: "64px 64px" }} />
+      {/* Blue ambient glow */}
+      <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-blue-600/[0.055] rounded-full blur-[180px]" />
 
-      {/* Subtle grid overlay */}
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(59,130,246,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(59,130,246,0.03)_1px,transparent_1px)] bg-[size:60px_60px]" />
-      <div className="absolute inset-0 bg-gradient-to-b from-[#050510]/0 via-[#050510]/20 to-[#050510]" />
+      <div className="relative z-10 w-full max-w-6xl mx-auto px-6 py-24">
+        <div className="grid lg:grid-cols-2 gap-16 items-center">
 
-      {/* Hero Content */}
-      <div className="relative z-10 max-w-4xl">
-        {/* Badge */}
-        <motion.div
-          className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/25 text-blue-400 text-sm font-medium mb-8"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-        >
-          <TrendingUp className="w-3.5 h-3.5" />
-          Professional Crypto Asset Management
-        </motion.div>
+          {/* Left */}
+          <div>
+            <motion.div
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="inline-flex items-center gap-2 border border-white/[0.07] rounded-full px-4 py-1.5 mb-10"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-[11px] font-light tracking-widest text-zinc-500 uppercase">Live · 2,400+ investors</span>
+            </motion.div>
 
-        {/* Headline */}
-        <motion.h1
-          className="text-5xl sm:text-6xl md:text-7xl font-extrabold leading-[1.1] tracking-tight text-white"
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.1 }}
-        >
-          Grow Your Crypto
-          <br />
-          <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-            While You Sleep
-          </span>
-        </motion.h1>
+            <motion.h1
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+              className="text-[clamp(44px,6vw,82px)] font-light text-white tracking-tight leading-[1.06] mb-6"
+            >
+              Earn while<br />
+              you <span className="text-blue-400">hold.</span>
+            </motion.h1>
 
-        <motion.p
-          className="mt-6 text-lg sm:text-xl text-gray-400 max-w-2xl mx-auto leading-relaxed"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.4, duration: 0.8 }}
-        >
-          Deposit Bitcoin, Ethereum, or USDT. Our expert trading team grows your portfolio and credits earnings directly to your account. Withdraw when your lock-up period ends.
-        </motion.p>
+            <motion.p
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.22 }}
+              className="text-[15px] font-light text-zinc-500 mb-10 max-w-[320px] leading-relaxed"
+            >
+              Deposit any supported coin.<br />We manage it. You earn up to 18% APY.
+            </motion.p>
 
-        {/* CTA Buttons */}
-        <motion.div
-          className="mt-10 flex flex-wrap justify-center gap-4"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.7, duration: 0.8 }}
-        >
-          <Link
-            href="/signup"
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-7 py-3.5 text-base font-semibold text-white shadow-xl shadow-blue-500/25 hover:from-blue-500 hover:to-purple-500 transition-all hover:scale-105"
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.32 }}
+              className="flex flex-wrap gap-3"
+            >
+              {loaded && (
+                user ? (
+                  <Link href={user.role === "admin" ? "/admin" : "/dashboard"}
+                    className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white text-[13px] font-normal rounded-xl transition-colors">
+                    {user.role === "admin" ? "Admin panel" : "Dashboard"} →
+                  </Link>
+                ) : (
+                  <Link href="/signup"
+                    className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white text-[13px] font-normal rounded-xl transition-colors">
+                    Open free account →
+                  </Link>
+                )
+              )}
+              <Link href="/#how"
+                className="px-6 py-3 border border-white/[0.08] hover:border-white/[0.14] text-zinc-500 hover:text-zinc-300 text-[13px] font-light rounded-xl transition-all">
+                How it works
+              </Link>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.8, delay: 0.55 }}
+              className="mt-14 pt-8 border-t border-white/[0.05] flex gap-10"
+            >
+              {[["18%", "Max APY"], ["6", "Coins"], ["$47M+", "Managed"]].map(([v, l]) => (
+                <div key={l}>
+                  <p className="text-xl font-light text-white">{v}</p>
+                  <p className="text-[11px] font-light text-zinc-600 mt-0.5">{l}</p>
+                </div>
+              ))}
+            </motion.div>
+          </div>
+
+          {/* Right — coin visual */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 1, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}
+            className="hidden lg:flex items-center justify-center relative h-[480px]"
           >
-            Start Earning
-            <ArrowRight className="w-4 h-4" />
-          </Link>
-          <Link
-            href="/features"
-            className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-7 py-3.5 text-base font-semibold text-white backdrop-blur hover:bg-white/10 transition-all"
-          >
-            How It Works
-          </Link>
-        </motion.div>
+            {/* Glow ring */}
+            <div className="absolute w-[340px] h-[340px] rounded-full bg-blue-600/[0.07] blur-[80px]" />
+            {/* Orbit rings */}
+            <div className="absolute w-[340px] h-[340px] rounded-full border border-white/[0.03]" />
+            <div className="absolute w-[260px] h-[260px] rounded-full border border-white/[0.04]" />
+            {/* Spinning ring */}
+            <motion.div animate={{ rotate: 360 }} transition={{ duration: 16, repeat: Infinity, ease: "linear" }}
+              className="absolute w-[310px] h-[310px] rounded-full border border-transparent border-t-blue-500/20 border-r-blue-500/10" />
+            <motion.div animate={{ rotate: -360 }} transition={{ duration: 24, repeat: Infinity, ease: "linear" }}
+              className="absolute w-[240px] h-[240px] rounded-full border border-transparent border-b-blue-400/15" />
 
-        {/* Trust indicators */}
-        <motion.div
-          className="mt-8 flex flex-wrap justify-center gap-6 text-sm text-gray-500"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1, duration: 0.8 }}
-        >
-          <span className="flex items-center gap-1.5">
-            <Shield className="w-4 h-4 text-green-400" />
-            Secured Deposits
-          </span>
-          <span className="flex items-center gap-1.5">
-            <Lock className="w-4 h-4 text-blue-400" />
-            Controlled Withdrawals
-          </span>
-          <span className="flex items-center gap-1.5">
-            <TrendingUp className="w-4 h-4 text-purple-400" />
-            Expert Trading
-          </span>
-        </motion.div>
+            {/* BTC coin */}
+            <motion.div
+              animate={{ y: [0, -16, 0] }}
+              transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+              className="relative z-10 w-28 h-28 rounded-full bg-gradient-to-br from-[#f7931a] to-[#e07d10] flex items-center justify-center shadow-[0_0_50px_rgba(247,147,26,0.3)]"
+            >
+              <span className="text-white text-5xl font-light select-none" style={{ fontFamily: "serif" }}>₿</span>
+              <div className="absolute inset-0 rounded-full bg-gradient-to-t from-black/10 via-transparent to-white/15" />
+            </motion.div>
 
-        {/* Stats */}
-        <motion.div
-          className="mt-14 flex flex-wrap justify-center gap-10"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1.1, duration: 0.7 }}
-        >
-          {stats.map((stat) => (
-            <div key={stat.label} className="text-center">
-              <p className="text-2xl font-bold text-white">{stat.value}</p>
-              <p className="text-xs text-gray-500 mt-0.5">{stat.label}</p>
-            </div>
-          ))}
-        </motion.div>
+            {/* Chips */}
+            {CHIPS.map((c, i) => {
+              const positions = ["top-[18%] right-[10%]", "top-[18%] left-[8%]", "bottom-[20%] right-[6%]"];
+              return (
+                <motion.div key={c.label}
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.9 + i * 0.12, duration: 0.4, ease: "backOut" }}
+                  className={`absolute ${positions[i]} flex items-center gap-2 bg-[#1e1e22]/90 border border-white/[0.07] rounded-xl px-3 py-2 backdrop-blur-sm`}
+                >
+                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: c.color }} />
+                  <div>
+                    <p className="text-[10px] font-light text-zinc-600">{c.label}</p>
+                    <p className="text-[12px] font-normal text-white leading-tight">{c.val}</p>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </motion.div>
+        </div>
       </div>
+
+      <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[#161618] to-transparent" />
     </section>
   );
 }
