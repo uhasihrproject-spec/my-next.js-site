@@ -3,9 +3,10 @@
 import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, useGLTF } from "@react-three/drei";
 import { useRef, useEffect, useState } from "react";
+import type { Object3D } from "three";
 
 function Phone({ tilt, scale }: { tilt: [number, number]; scale: number }) {
-  const phoneRef = useRef<any>(null);
+  const phoneRef = useRef<Object3D>(null);
   const gltf = useGLTF("/phone.glb");
 
   useFrame(() => {

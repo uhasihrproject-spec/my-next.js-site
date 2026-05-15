@@ -1,60 +1,72 @@
-"use client";
-
-import { Instagram, Twitter, Linkedin, Github } from "lucide-react";
+import Link from "next/link";
 
 export default function Footer() {
   return (
-    <footer className="bg-gray-900 text-white py-16">
-      <div className="max-w-6xl mx-auto px-6 grid md:grid-cols-3 gap-8">
-        
-        {/* Newsletter */}
-        <div>
-          <h3 className="text-xl font-bold mb-4">Subscribe to our Newsletter</h3>
-          <p className="text-gray-400 mb-4">
-            Get the latest updates, news, and crypto insights.
-          </p>
-          <form className="flex gap-2">
-            <input
-              type="email"
-              placeholder="Enter your email"
-              className="flex-1 p-3 rounded-l-2xl bg-gray-800/50 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <button className="bg-blue-500 hover:bg-blue-600 px-6 rounded-r-2xl transition-colors">
-              Subscribe
-            </button>
-          </form>
-        </div>
+    <footer className="bg-[#111113] border-t border-white/[0.05] px-6 pt-14 pb-8">
+      <div className="max-w-6xl mx-auto">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-10 mb-12">
 
-        {/* Quick Links */}
-        <div>
-          <h3 className="text-xl font-bold mb-4">Quick Links</h3>
-          <ul className="space-y-2 text-gray-400">
-            <li className="hover:text-white transition-colors cursor-pointer">About Us</li>
-            <li className="hover:text-white transition-colors cursor-pointer">Features</li>
-            <li className="hover:text-white transition-colors cursor-pointer">Live Stats</li>
-            <li className="hover:text-white transition-colors cursor-pointer">FAQ</li>
-            <li className="hover:text-white transition-colors cursor-pointer">Contact</li>
-          </ul>
-        </div>
-
-        {/* Contact / Social */}
-        <div>
-          <h3 className="text-xl font-bold mb-4">Contact & Social</h3>
-          <p className="text-gray-400 mb-4">
-            Email: <span className="text-white">support@crypto-site.com</span>
-          </p>
-          <div className="flex gap-4">
-            <a href="#" className="hover:text-blue-400 transition-colors"><Twitter /></a>
-            <a href="#" className="hover:text-pink-500 transition-colors"><Instagram /></a>
-            <a href="#" className="hover:text-blue-600 transition-colors"><Linkedin /></a>
-            <a href="#" className="hover:text-gray-400 transition-colors"><Github /></a>
+          <div className="lg:col-span-1">
+            <Link href="/" className="inline-flex items-center gap-2 mb-4">
+              <div className="w-6 h-6 rounded-md bg-blue-500 flex items-center justify-center">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                  <rect x="0.5" y="0.5" width="4.5" height="4.5" rx="0.5" fill="white"/>
+                  <rect x="7" y="0.5" width="4.5" height="4.5" rx="0.5" fill="white" opacity="0.5"/>
+                  <rect x="0.5" y="7" width="4.5" height="4.5" rx="0.5" fill="white" opacity="0.5"/>
+                  <rect x="7" y="7" width="4.5" height="4.5" rx="0.5" fill="white" opacity="0.25"/>
+                </svg>
+              </div>
+              <span className="text-white font-normal text-[14px] tracking-wide">VaultX</span>
+            </Link>
+            <p className="text-[12px] font-light text-zinc-600 leading-relaxed max-w-[180px]">
+              Professional crypto asset management.
+            </p>
           </div>
+
+          {[
+            {
+              head: "Platform",
+              links: [
+                { href: "/#features", label: "Features" },
+                { href: "/#pricing",  label: "Pricing" },
+                { href: "/signup",    label: "Open Account" },
+                { href: "/login",     label: "Log In" },
+              ],
+            },
+            {
+              head: "Support",
+              links: [
+                { href: "/#faq",               label: "FAQ" },
+                { href: "mailto:admin@vaultx.io", label: "Email us" },
+              ],
+            },
+            {
+              head: "Legal",
+              links: [
+                { href: "#", label: "Privacy" },
+                { href: "#", label: "Terms" },
+              ],
+            },
+          ].map((col) => (
+            <div key={col.head}>
+              <p className="text-[10px] font-normal tracking-widest text-zinc-700 uppercase mb-4">{col.head}</p>
+              <ul className="space-y-2.5">
+                {col.links.map(({ href, label }) => (
+                  <li key={href}>
+                    <Link href={href} className="text-[12px] font-light text-zinc-600 hover:text-zinc-300 transition-colors">
+                      {label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </div>
 
-      </div>
-
-      <div className="mt-12 text-center text-gray-500 text-sm">
-        &copy; {new Date().getFullYear()} CryptoSite. All rights reserved.
+        <div className="border-t border-white/[0.04] pt-5 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] font-light text-zinc-700">
+          <p>&copy; {new Date().getFullYear()} VaultX. All rights reserved.</p>
+          <p>Not financial advice · Crypto carries risk</p>
+        </div>
       </div>
     </footer>
   );

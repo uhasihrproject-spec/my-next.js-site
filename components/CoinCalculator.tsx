@@ -111,6 +111,7 @@ export default function EdgeCoinCalculator() {
                     onClick={() => handleCoinSelect(coin.id)}
                     className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gradient-to-r from-yellow-400 via-pink-500 to-purple-500 hover:text-black transition-colors"
                     >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={coin.image} alt={coin.name} className="w-5 h-5 rounded-full" />
                     <span className="text-sm text-black">{coin.name} ({coin.symbol.toUpperCase()})</span>
                    </div>

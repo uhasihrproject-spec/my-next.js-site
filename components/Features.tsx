@@ -1,72 +1,102 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Shield, Zap, Globe, Wallet } from "lucide-react";
 
-const features = [
+const steps = [
   {
-    icon: Shield,
-    title: "Secure Transactions",
-    desc: "Industry-leading encryption and blockchain verification keep your assets safe.",
+    n: "01",
+    title: "Create an account",
+    desc: "Sign up in under 2 minutes. No ID required to get started.",
   },
   {
-    icon: Zap,
-    title: "Lightning Fast",
-    desc: "Experience instant transfers and trading with minimal fees.",
+    n: "02",
+    title: "Send your crypto",
+    desc: "Copy our wallet address, send any supported coin, and submit your transaction hash.",
   },
   {
-    icon: Globe,
-    title: "Global Access",
-    desc: "Trade and manage crypto from anywhere in the world, 24/7.",
+    n: "03",
+    title: "We put it to work",
+    desc: "Our traders allocate your deposit across active strategies to generate returns.",
   },
   {
-    icon: Wallet,
-    title: "Smart Wallet",
-    desc: "Connect and manage multiple wallets with ease and transparency.",
+    n: "04",
+    title: "Withdraw your returns",
+    desc: "After your lock-up period, request a withdrawal. Funds arrive within 24–48 hours.",
   },
+];
+
+const benefits = [
+  "Principal and earnings tracked separately",
+  "Per-account custom lock-up periods",
+  "Global withdrawal lock for protection",
+  "Admin-managed deposit confirmation",
+  "BTC, ETH, USDT, BNB, SOL, USDC",
+  "Full transaction history on your dashboard",
 ];
 
 export default function Features() {
   return (
-    <section
-      id="features"
-      className="relative z-10 bg-gray-950 py-20 px-6 text-white"
-    >
-      <div className="mx-auto max-w-6xl text-center">
-        <motion.h2
-          className="text-4xl font-extrabold sm:text-5xl bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent"
-          initial={{ opacity: 0, y: 40 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7 }}
-        >
-          Powerful Features
-        </motion.h2>
-        <motion.p
-          className="mt-4 text-lg text-gray-400"
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          transition={{ delay: 0.3, duration: 0.7 }}
-        >
-          Everything you need to manage your crypto journey — secure, fast, and
-          borderless.
-        </motion.p>
+    <section className="bg-black py-24 px-5 border-t border-white/6">
+      <div className="max-w-5xl mx-auto space-y-20">
 
-        {/* Feature Cards */}
-        <div className="mt-14 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
-          {features.map((feat, index) => (
-            <motion.div
-              key={feat.title}
-              className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-lg backdrop-blur-xl transition hover:bg-white/10"
-              initial={{ opacity: 0, y: 40 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.2, duration: 0.6 }}
-            >
-              <feat.icon className="mx-auto mb-4 h-12 w-12 text-blue-400" />
-              <h3 className="text-xl font-semibold">{feat.title}</h3>
-              <p className="mt-2 text-gray-400">{feat.desc}</p>
-            </motion.div>
-          ))}
+        {/* How it works */}
+        <div>
+          <p className="text-[11px] font-semibold tracking-widest text-zinc-600 uppercase mb-4">Process</p>
+          <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-white mb-12">
+            How it works
+          </h2>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            {steps.map((step, i) => (
+              <motion.div
+                key={step.n}
+                initial={{ opacity: 0 }}
+                whileInView={{ opacity: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.08, duration: 0.4 }}
+              >
+                <span className="block text-5xl font-bold text-white/5 leading-none mb-4">
+                  {step.n}
+                </span>
+                <h3 className="text-sm font-semibold text-white mb-2">{step.title}</h3>
+                <p className="text-sm text-zinc-500 leading-relaxed">{step.desc}</p>
+              </motion.div>
+            ))}
+          </div>
         </div>
+
+        {/* What you get */}
+        <div className="grid md:grid-cols-2 gap-12 items-start">
+          <motion.div
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.4 }}
+          >
+            <p className="text-[11px] font-semibold tracking-widest text-zinc-600 uppercase mb-4">Platform</p>
+            <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-white mb-5">
+              Everything you need
+            </h2>
+            <p className="text-zinc-400 leading-relaxed text-sm">
+              VaultX is built around one goal: grow your crypto safely while giving you complete visibility into every dollar at all times.
+            </p>
+          </motion.div>
+
+          <motion.ul
+            className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-4 pt-1"
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.4, delay: 0.1 }}
+          >
+            {benefits.map((b) => (
+              <li key={b} className="flex items-start gap-2.5 text-sm text-zinc-400">
+                <span className="w-1 h-1 rounded-full bg-blue-500 mt-2 shrink-0" />
+                {b}
+              </li>
+            ))}
+          </motion.ul>
+        </div>
+
       </div>
     </section>
   );

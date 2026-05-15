@@ -1,30 +1,33 @@
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
-import Features from "@/components/Features";
-import ChatWidget from "@/components/ChatWidget";
-import LiveStats from "@/components/LiveStats";
-import Pricing from "@/components/Pricing";
-import About from "@/components/About";
+import PriceTicker from "@/components/PriceTicker";
+import PlatformStats from "@/components/PlatformStats";
+import HowItWorks from "@/components/HowItWorks";
+import FeatureShowcase from "@/components/FeatureShowcase";
+import SupportedCoins from "@/components/SupportedCoins";
 import Testimonials from "@/components/Testimonials";
+import Pricing from "@/components/Pricing";
+import CTABanner from "@/components/CTABanner";
 import FAQ from "@/components/FAQ";
 import Footer from "@/components/Footer";
-import Phone3D from "@/components/Phone3D";
-import CoinCalculator from "@/components/CoinCalculator";
+import ChatWidget from "@/components/ChatWidget";
+
 export default function Home() {
   return (
-    <main className="bg-gray-950 min-h-screen text-white">
+    <main className="bg-[#161618] text-white overflow-x-hidden">
       <Navbar />
       <Hero />
-      <Phone3D />
-      <Features />
-      <Pricing /> 
-      <LiveStats /> 
-      <About />
+      <PriceTicker />
+      <PlatformStats />
+      <HowItWorks />
+      <FeatureShowcase />
+      <SupportedCoins />
       <Testimonials />
+      <Pricing />
+      <CTABanner />
       <FAQ />
       <Footer />
       <ChatWidget />
-      <CoinCalculator />
     </main>
   );
 }

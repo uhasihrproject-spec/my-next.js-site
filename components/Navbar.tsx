@@ -1,138 +1,124 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useState } from "react";
-import { usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
+
+const LINKS = [
+  { label: "Features", href: "/#features" },
+  { label: "Assets", href: "/#assets" },
+  { label: "Pricing", href: "/#pricing" },
+  { label: "FAQ", href: "/#faq" },
+];
 
 export default function Navbar() {
-  const [isOpen, setIsOpen] = useState(false);
-  const pathname = usePathname(); // get current route
+  const [scrolled, setScrolled] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [user, setUser] = useState<{ name: string; role: string } | null>(null);
+  const router = useRouter();
+
+  useEffect(() => {
+    const fn = () => setScrolled(window.scrollY > 20);
+    window.addEventListener("scroll", fn, { passive: true });
+    fn();
+    return () => window.removeEventListener("scroll", fn);
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((r) => r.json())
+      .then((d) => setUser(d.user || null))
+      .catch(() => null);
+  }, []);
+
+  async function logout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    setUser(null);
+    router.push("/");
+  }
 
   return (
-    <nav className="fixed top-0 left-0 w-full z-50 backdrop-blur-md bg-black/30 border-b border-white/10 transition-all duration-300">
-      <div className="max-w-7xl mx-auto px-6 sm:px-12">
-        <div className="flex justify-between items-center h-20">
-          {/* Logo with gradient */}
-          <Link
-            href="/"
-            className="text-2xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent"
-          >
-            CryptoSite
-          </Link>
+    <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
+      scrolled ? "bg-[#161618]/90 backdrop-blur-xl border-b border-white/[0.05]" : "bg-transparent"
+    }`}>
+      <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
 
-          {/* Desktop Links */}
-          <div className="hidden md:flex items-center space-x-8 text-white font-medium">
-            <Link
-              href="/features"
-              className={`transition-colors ${
-                pathname === "/features" ? "text-yellow-400 font-semibold" : "hover:text-yellow-400"
-              }`}
-            >
-              Features
-            </Link>
-            <Link
-              href="/stats"
-              className={`transition-colors ${
-                pathname === "/stats" ? "text-yellow-400 font-semibold" : "hover:text-yellow-400"
-              }`}
-            >
-              Stats
-            </Link>
-            <Link
-              href="/about"
-              className={`transition-colors ${
-                pathname === "/about" ? "text-yellow-400 font-semibold" : "hover:text-yellow-400"
-              }`}
-            >
-              About
-            </Link>
-            <Link
-              href="/faq"
-              className={`transition-colors ${
-                pathname === "/faq" ? "text-yellow-400 font-semibold" : "hover:text-yellow-400"
-              }`}
-            >
-              FAQ
-            </Link>
-            <Link
-              href="/login"
-              className={`transition-colors ${
-                pathname === "/login" ? "text-yellow-400 font-semibold" : "hover:text-yellow-400"
-              }`}
-            >
-              Login
-            </Link>
-            <Link
-              href="/signup"
-              className="px-4 py-2 bg-yellow-400 text-black font-semibold rounded-lg hover:scale-105 transition-transform"
-            >
-              Sign Up
-            </Link>
+        <Link href="/" className="flex items-center gap-2.5">
+          <div className="w-6 h-6 rounded-md bg-blue-500 flex items-center justify-center">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <rect x="0.5" y="0.5" width="4.5" height="4.5" rx="0.5" fill="white"/>
+              <rect x="7" y="0.5" width="4.5" height="4.5" rx="0.5" fill="white" opacity="0.5"/>
+              <rect x="0.5" y="7" width="4.5" height="4.5" rx="0.5" fill="white" opacity="0.5"/>
+              <rect x="7" y="7" width="4.5" height="4.5" rx="0.5" fill="white" opacity="0.25"/>
+            </svg>
           </div>
+          <span className="text-white font-medium text-[15px] tracking-wide">VaultX</span>
+        </Link>
 
-          {/* Mobile menu button */}
-          <div className="md:hidden">
-            <button
-              onClick={() => setIsOpen(!isOpen)}
-              className="text-white focus:outline-none font-semibold"
-            >
-              {isOpen ? "✕" : "☰"}
-            </button>
-          </div>
+        <nav className="hidden md:flex items-center gap-0.5">
+          {LINKS.map((n) => (
+            <Link key={n.label} href={n.href}
+              className="px-4 py-2 text-[13px] font-light text-zinc-500 hover:text-zinc-200 rounded-lg hover:bg-white/[0.04] transition-all">
+              {n.label}
+            </Link>
+          ))}
+        </nav>
+
+        <div className="hidden md:flex items-center gap-2">
+          {user ? (
+            <>
+              <Link href={user.role === "admin" ? "/admin" : "/dashboard"}
+                className="px-4 py-2 text-[13px] font-light text-zinc-400 hover:text-white transition-colors">
+                {user.role === "admin" ? "Admin" : "Dashboard"}
+              </Link>
+              <button onClick={logout} className="px-4 py-2 text-[13px] font-light text-zinc-600 hover:text-zinc-400 transition-colors">
+                Sign out
+              </button>
+            </>
+          ) : (
+            <>
+              <Link href="/login" className="px-4 py-2 text-[13px] font-light text-zinc-500 hover:text-zinc-200 transition-colors">
+                Log in
+              </Link>
+              <Link href="/signup"
+                className="px-4 py-2 text-[13px] font-normal bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors">
+                Get started
+              </Link>
+            </>
+          )}
         </div>
+
+        <button onClick={() => setOpen(!open)} className="md:hidden flex flex-col gap-[5px] w-9 h-9 items-center justify-center" aria-label="Menu">
+          <span className={`h-px w-5 bg-zinc-400 transition-all ${open ? "rotate-45 translate-y-[7px]" : ""}`} />
+          <span className={`h-px w-5 bg-zinc-400 transition-all ${open ? "opacity-0" : ""}`} />
+          <span className={`h-px w-5 bg-zinc-400 transition-all ${open ? "-rotate-45 -translate-y-[7px]" : ""}`} />
+        </button>
       </div>
 
-      {/* Mobile menu */}
-      {isOpen && (
-        <div className="md:hidden px-6 pb-4 bg-black/30 backdrop-blur-md rounded-b-lg text-white space-y-3 transition-all duration-300">
-          <Link
-            href="/features"
-            className={`block transition-colors ${
-              pathname === "/features" ? "text-yellow-400 font-semibold" : "hover:text-yellow-400"
-            }`}
-          >
-            Features
-          </Link>
-          <Link
-            href="/stats"
-            className={`block transition-colors ${
-              pathname === "/stats" ? "text-yellow-400 font-semibold" : "hover:text-yellow-400"
-            }`}
-          >
-            Stats
-          </Link>
-          <Link
-            href="/about"
-            className={`block transition-colors ${
-              pathname === "/about" ? "text-yellow-400 font-semibold" : "hover:text-yellow-400"
-            }`}
-          >
-            About
-          </Link>
-          <Link
-            href="/faq"
-            className={`block transition-colors ${
-              pathname === "/faq" ? "text-yellow-400 font-semibold" : "hover:text-yellow-400"
-            }`}
-          >
-            FAQ
-          </Link>
-          <Link
-            href="/login"
-            className={`block transition-colors ${
-              pathname === "/login" ? "text-yellow-400 font-semibold" : "hover:text-yellow-400"
-            }`}
-          >
-            Login
-          </Link>
-          <Link
-            href="/signup"
-            className="block px-4 py-2 bg-yellow-400 text-black font-semibold rounded-lg hover:scale-105 transition-transform"
-          >
-            Sign Up
-          </Link>
+      <div className={`md:hidden overflow-hidden transition-all duration-300 ${open ? "max-h-80" : "max-h-0"} bg-[#161618] border-b border-white/[0.05]`}>
+        <div className="px-6 pt-2 pb-5 flex flex-col gap-0.5">
+          {LINKS.map((n) => (
+            <Link key={n.label} href={n.href} onClick={() => setOpen(false)}
+              className="py-2.5 text-[13px] font-light text-zinc-500 hover:text-white">
+              {n.label}
+            </Link>
+          ))}
+          <div className="h-px bg-white/[0.05] my-2" />
+          {user ? (
+            <>
+              <Link href={user.role === "admin" ? "/admin" : "/dashboard"} onClick={() => setOpen(false)} className="py-2.5 text-[13px] font-light text-zinc-400">
+                {user.role === "admin" ? "Admin Panel" : "Dashboard"}
+              </Link>
+              <button onClick={() => { logout(); setOpen(false); }} className="py-2.5 text-[13px] font-light text-zinc-600 text-left">Sign out</button>
+            </>
+          ) : (
+            <>
+              <Link href="/login" onClick={() => setOpen(false)} className="py-2.5 text-[13px] font-light text-zinc-500">Log in</Link>
+              <Link href="/signup" onClick={() => setOpen(false)} className="mt-1 py-2.5 text-[13px] font-normal bg-blue-600 text-white rounded-lg text-center">Get started</Link>
+            </>
+          )}
         </div>
-      )}
-    </nav>
+      </div>
+    </header>
   );
 }
