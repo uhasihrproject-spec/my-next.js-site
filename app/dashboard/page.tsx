@@ -7,7 +7,7 @@ import Link from "next/link";
 import {
   TrendingUp, ArrowDownToLine, ArrowUpFromLine,
   LogOut, Copy, CheckCheck, Loader2, Lock, ShieldCheck,
-  ArrowRight, ArrowLeft, AlertCircle, Check,
+  ArrowRight, ArrowLeft, AlertCircle,
   Wallet, Activity, Plus, LineChart, Settings as SettingsIcon,
   X, Bell, RefreshCw, Sparkles, KeyRound, Fingerprint, Mail,
   BadgeCheck, Calculator, Newspaper, ArrowUpDown, ExternalLink,
@@ -173,6 +173,24 @@ function SpinningRing({ color }: { color: string }) {
   );
 }
 
+/* ─── Animated check — strokes itself on ─── */
+function AnimatedCheck({ size = 48, color = "#34d399", delay = 0.15 }: { size?: number; color?: string; delay?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <motion.path
+        d="M5 12.5l4.5 4.5L19 7"
+        stroke={color}
+        strokeWidth={2.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        initial={{ pathLength: 0, opacity: 0 }}
+        animate={{ pathLength: 1, opacity: 1 }}
+        transition={{ duration: 0.45, ease: "easeOut", delay }}
+      />
+    </svg>
+  );
+}
+
 /* ─── Success ring ─── */
 function SuccessRing() {
   return (
@@ -191,8 +209,8 @@ function SuccessRing() {
         transition={{ delay: 0.05 }} />
       <div className="absolute inset-0 flex items-center justify-center">
         <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}
-          transition={{ delay: 0.2, type: "spring", damping: 10, stiffness: 300 }}>
-          <Check className="w-12 h-12 text-emerald-400" strokeWidth={1.5} />
+          transition={{ delay: 0.18, type: "spring", damping: 10, stiffness: 300 }}>
+          <AnimatedCheck size={50} delay={0.34} />
         </motion.div>
       </div>
     </motion.div>
@@ -202,7 +220,10 @@ function SuccessRing() {
 /* ─── Coin glyph ─── */
 function CoinGlyph({ coin, size = 40 }: { coin: CoinKey; size?: number }) {
   return (
-    <div
+    <motion.div
+      whileHover={{ scale: 1.14, rotate: -8 }}
+      whileTap={{ scale: 0.92 }}
+      transition={{ type: "spring", stiffness: 420, damping: 13 }}
       className="rounded-full flex items-center justify-center shrink-0"
       style={{
         width: size, height: size,
@@ -212,7 +233,7 @@ function CoinGlyph({ coin, size = 40 }: { coin: CoinKey; size?: number }) {
       }}
     >
       {COIN_SYMBOL[coin]}
-    </div>
+    </motion.div>
   );
 }
 
@@ -247,7 +268,7 @@ function BalanceStack({ user, activeCoins, locked, hidden, onToggleHidden }: {
   /* ── No assets — single default card ── */
   if (n === 0) {
     return (
-      <div className="relative mb-7">
+      <div className="relative mb-7 max-w-md mx-auto">
         <div className="absolute left-1/2 -translate-x-1/2 -bottom-3 w-[90%] h-full rounded-2xl bg-[#15151a] border border-white/[0.05]" />
         <motion.div
           initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
@@ -286,7 +307,7 @@ function BalanceStack({ user, activeCoins, locked, hidden, onToggleHidden }: {
     .sort((a, b) => b.pos - a.pos);
 
   return (
-    <div className="relative mb-7" style={{ height: 224 }}>
+    <div className="relative mb-7 max-w-md mx-auto" style={{ height: 224 }}>
       {cards.map(({ coin, pos }) => {
         const isFront = pos === 0;
         const bal = (user.balance[coin] || 0) + (user.earnings[coin] || 0);
@@ -922,7 +943,7 @@ function WithdrawOverlay({
                   transition={{ type: "spring", damping: 13, stiffness: 240 }}
                   className="w-14 h-14 rounded-full bg-emerald-400/[0.1] border border-emerald-400/30 flex items-center justify-center mb-3"
                 >
-                  <Check className="w-7 h-7 text-emerald-400" strokeWidth={2} />
+                  <AnimatedCheck size={30} delay={0.28} />
                 </motion.div>
                 <p className="text-[18px] font-light text-white mb-1">Withdrawal requested</p>
                 <p className="text-[12px] font-light text-zinc-600 mb-6">Keep this receipt for your records</p>
@@ -1906,9 +1927,11 @@ function GateScreen({ user, hasPin, onUnlock }: {
       className="fixed inset-0 z-[100] bg-[#0a0a0b] flex flex-col items-center justify-center px-6 py-10 overflow-y-auto"
     >
       <div className="flex items-center gap-2 mb-auto">
-        <div className="w-6 h-6 rounded-md bg-blue-500 flex items-center justify-center">
+        <motion.div className="w-6 h-6 rounded-md bg-blue-500 flex items-center justify-center"
+          animate={{ scale: [1, 1.09, 1] }}
+          transition={{ duration: 3.4, repeat: Infinity, ease: "easeInOut" }}>
           <TrendingUp className="w-3 h-3 text-white" />
-        </div>
+        </motion.div>
         <span className="font-normal text-white text-[14px]">VaultX</span>
       </div>
 
@@ -2497,9 +2520,11 @@ export default function Dashboard() {
   if (loading) return (
     <div className="min-h-screen bg-[#0a0a0b] flex items-center justify-center">
       <div className="flex flex-col items-center gap-3">
-        <div className="w-9 h-9 rounded-xl bg-blue-600/15 border border-blue-500/20 flex items-center justify-center">
+        <motion.div className="w-9 h-9 rounded-xl bg-blue-600/15 border border-blue-500/20 flex items-center justify-center"
+          animate={{ scale: [1, 1.12, 1], opacity: [0.7, 1, 0.7] }}
+          transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}>
           <TrendingUp className="w-4 h-4 text-blue-400" />
-        </div>
+        </motion.div>
         <Loader2 className="w-4 h-4 animate-spin text-zinc-600" />
       </div>
     </div>
@@ -2520,9 +2545,11 @@ export default function Dashboard() {
         {/* Logo */}
         <div className="px-5 h-16 flex items-center border-b border-white/[0.04]">
           <Link href="/" className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-blue-500 flex items-center justify-center">
+            <motion.div className="w-7 h-7 rounded-lg bg-blue-500 flex items-center justify-center"
+              animate={{ scale: [1, 1.09, 1] }}
+              transition={{ duration: 3.4, repeat: Infinity, ease: "easeInOut" }}>
               <TrendingUp className="w-3.5 h-3.5 text-white" />
-            </div>
+            </motion.div>
             <span className="font-normal text-white text-[15px] tracking-tight">VaultX</span>
           </Link>
         </div>
@@ -2538,7 +2565,11 @@ export default function Dashboard() {
                 }`}
               >
                 {tab === id && <motion.div layoutId="sideNav" className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-blue-500" />}
-                <Icon className="w-4 h-4" />
+                <motion.span className="inline-flex"
+                  animate={{ scale: tab === id ? 1.18 : 1, rotate: tab === id ? -6 : 0 }}
+                  transition={{ type: "spring", stiffness: 420, damping: 12 }}>
+                  <Icon className="w-4 h-4" />
+                </motion.span>
                 {label}
               </button>
             ))}
@@ -2548,12 +2579,12 @@ export default function Dashboard() {
           <p className="px-3 text-[10px] font-normal tracking-[0.18em] text-zinc-700 uppercase mb-2 mt-7">Quick actions</p>
           <div className="space-y-2 px-1">
             <button onClick={() => setDepositOpen(true)}
-              className="w-full flex items-center gap-2.5 px-3 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-[12px] font-normal rounded-lg transition-colors active:scale-[0.98]">
-              <ArrowDownToLine className="w-3.5 h-3.5" /> Deposit funds
+              className="group w-full flex items-center gap-2.5 px-3 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-[12px] font-normal rounded-lg transition-colors active:scale-[0.98]">
+              <ArrowDownToLine className="w-3.5 h-3.5 transition-transform duration-200 group-hover:translate-y-0.5 group-active:translate-y-1.5" /> Deposit funds
             </button>
             <button onClick={() => setWithdrawOpen(true)}
-              className="w-full flex items-center gap-2.5 px-3 py-2.5 bg-white/[0.05] hover:bg-white/[0.08] border border-white/[0.08] text-zinc-200 text-[12px] font-normal rounded-lg transition-colors active:scale-[0.98]">
-              <ArrowUpFromLine className="w-3.5 h-3.5" /> Withdraw
+              className="group w-full flex items-center gap-2.5 px-3 py-2.5 bg-white/[0.05] hover:bg-white/[0.08] border border-white/[0.08] text-zinc-200 text-[12px] font-normal rounded-lg transition-colors active:scale-[0.98]">
+              <ArrowUpFromLine className="w-3.5 h-3.5 transition-transform duration-200 group-hover:-translate-y-0.5 group-active:-translate-y-1.5" /> Withdraw
             </button>
             <button onClick={() => setToolsOpen(true)}
               className="w-full flex items-center gap-2.5 px-3 py-2.5 bg-white/[0.03] hover:bg-white/[0.07] border border-white/[0.06] text-zinc-300 text-[12px] font-normal rounded-lg transition-colors active:scale-[0.98]">
@@ -2592,9 +2623,11 @@ export default function Dashboard() {
       <header className="md:hidden sticky top-0 z-30 bg-[#0a0a0b]/90 backdrop-blur-xl border-b border-white/[0.05]">
         <div className="flex items-center justify-between px-5 h-14">
           <Link href="/" className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md bg-blue-500 flex items-center justify-center">
+            <motion.div className="w-6 h-6 rounded-md bg-blue-500 flex items-center justify-center"
+              animate={{ scale: [1, 1.09, 1] }}
+              transition={{ duration: 3.4, repeat: Infinity, ease: "easeInOut" }}>
               <TrendingUp className="w-3 h-3 text-white" />
-            </div>
+            </motion.div>
             <span className="font-normal text-white text-[14px]">VaultX</span>
           </Link>
           <div className="flex items-center gap-2">
@@ -2641,12 +2674,12 @@ export default function Dashboard() {
           {tab === "portfolio" && (
             <div className="md:hidden grid grid-cols-2 gap-3 mb-7">
               <button onClick={() => setDepositOpen(true)}
-                className="flex items-center justify-center gap-2 py-3.5 bg-blue-600 hover:bg-blue-500 text-white text-[13px] font-normal rounded-xl transition-colors active:scale-[0.98]">
-                <ArrowDownToLine className="w-4 h-4" /> Deposit
+                className="group flex items-center justify-center gap-2 py-3.5 bg-blue-600 hover:bg-blue-500 text-white text-[13px] font-normal rounded-xl transition-colors active:scale-[0.98]">
+                <ArrowDownToLine className="w-4 h-4 transition-transform duration-200 group-hover:translate-y-0.5 group-active:translate-y-1.5" /> Deposit
               </button>
               <button onClick={() => setWithdrawOpen(true)}
-                className="flex items-center justify-center gap-2 py-3.5 bg-white/[0.05] hover:bg-white/[0.08] border border-white/[0.08] text-zinc-200 text-[13px] font-normal rounded-xl transition-colors active:scale-[0.98]">
-                <ArrowUpFromLine className="w-4 h-4" /> Withdraw
+                className="group flex items-center justify-center gap-2 py-3.5 bg-white/[0.05] hover:bg-white/[0.08] border border-white/[0.08] text-zinc-200 text-[13px] font-normal rounded-xl transition-colors active:scale-[0.98]">
+                <ArrowUpFromLine className="w-4 h-4 transition-transform duration-200 group-hover:-translate-y-0.5 group-active:-translate-y-1.5" /> Withdraw
               </button>
             </div>
           )}
@@ -2687,7 +2720,12 @@ export default function Dashboard() {
               }`}
             >
               {tab === id && <motion.div layoutId="botNav" className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-[2px] rounded-full bg-blue-500" />}
-              <Icon className="w-[18px] h-[18px]" />
+              <motion.span className="inline-flex"
+                animate={{ scale: tab === id ? 1.22 : 1, y: tab === id ? -1 : 0 }}
+                whileTap={{ scale: 0.85 }}
+                transition={{ type: "spring", stiffness: 440, damping: 12 }}>
+                <Icon className="w-[18px] h-[18px]" />
+              </motion.span>
               <span className="text-[9px] font-light tracking-wide">{label}</span>
             </button>
           ))}
