@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
@@ -11,7 +11,7 @@ import {
   Wallet, Activity, Plus, LineChart, Settings as SettingsIcon,
   X, Bell, RefreshCw, Sparkles, KeyRound, Fingerprint, Mail,
   BadgeCheck, Calculator, Newspaper, ArrowUpDown, ExternalLink,
-  Delete, ScanFace, Download, Receipt as ReceiptIcon, Eye, EyeOff,
+  ScanFace, Download, Receipt as ReceiptIcon, Eye, EyeOff,
 } from "lucide-react";
 import type { CoinKey } from "@/lib/db";
 import ChatWidget from "@/components/ChatWidget";
@@ -301,15 +301,25 @@ function BalanceStack({ user, activeCoins, locked, hidden, onToggleHidden }: {
             dragConstraints={{ top: 0, bottom: 0 }}
             dragElastic={{ top: 0.6, bottom: 0.1 }}
             onDragEnd={(_, info) => { if (info.offset.y < -55) setIndex((p) => (p + 1) % n); }}
-            animate={{ y: pos * 13, scale: 1 - pos * 0.05, opacity: pos === 0 ? 1 : pos === 1 ? 0.65 : 0.35 }}
+            animate={{ y: pos * 13, scale: 1 - pos * 0.05 }}
             transition={{ type: "spring", damping: 26, stiffness: 240 }}
-            style={{ zIndex: 10 - pos, background: `linear-gradient(140deg, ${c}26 0%, #13141b 55%, #0e0f14 100%)` }}
+            style={{
+              zIndex: 10 - pos,
+              backgroundColor: "#0e0f14",
+              backgroundImage: `linear-gradient(140deg, ${c}26 0%, #13141b 55%, #0e0f14 100%)`,
+            }}
             className={`absolute inset-x-0 top-0 h-[196px] rounded-2xl p-5 overflow-hidden border border-white/[0.09] ${
               isFront && n > 1 ? "cursor-grab active:cursor-grabbing" : ""
             }`}
           >
             <div className="absolute -top-14 -right-10 w-44 h-44 rounded-full pointer-events-none"
               style={{ background: `radial-gradient(circle, ${c}30 0%, transparent 70%)` }} />
+            {/* Depth scrim — dims cards behind the front one (kept fully opaque). */}
+            <motion.div
+              className="absolute inset-0 z-20 bg-black pointer-events-none"
+              animate={{ opacity: pos === 0 ? 0 : pos === 1 ? 0.42 : 0.62 }}
+              transition={{ type: "spring", damping: 26, stiffness: 240 }}
+            />
 
             <div className="relative z-10 h-full flex flex-col">
               {/* Header */}
@@ -1684,35 +1694,6 @@ function PinDots({ count, error }: { count: number; error: boolean }) {
   );
 }
 
-function Keypad({ onDigit, onBack, onBio, busy }: {
-  onDigit: (d: string) => void; onBack: () => void; onBio?: () => void; busy: boolean;
-}) {
-  return (
-    <div className="grid grid-cols-3 gap-3 w-full max-w-[260px]">
-      {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((d) => (
-        <button key={d} onClick={() => onDigit(d)} disabled={busy}
-          className="h-14 rounded-xl bg-white/[0.04] border border-white/[0.06] text-[20px] font-light text-white hover:bg-white/[0.08] active:scale-95 disabled:opacity-40 transition-all">
-          {d}
-        </button>
-      ))}
-      {onBio ? (
-        <button onClick={onBio} disabled={busy}
-          className="h-14 rounded-xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-blue-400 hover:bg-white/[0.08] active:scale-95 disabled:opacity-40 transition-all">
-          <Fingerprint className="w-5 h-5" />
-        </button>
-      ) : <div />}
-      <button onClick={() => onDigit("0")} disabled={busy}
-        className="h-14 rounded-xl bg-white/[0.04] border border-white/[0.06] text-[20px] font-light text-white hover:bg-white/[0.08] active:scale-95 disabled:opacity-40 transition-all">
-        0
-      </button>
-      <button onClick={onBack} disabled={busy}
-        className="h-14 rounded-xl flex items-center justify-center text-zinc-500 hover:bg-white/[0.04] active:scale-95 disabled:opacity-40 transition-all">
-        <Delete className="w-5 h-5" />
-      </button>
-    </div>
-  );
-}
-
 /* ─── PIN / biometric verification (used to authorize withdrawals) ─── */
 function VerifyPin({ user, title, onVerified, onCancel }: {
   user: UserData; title: string; onVerified: () => void; onCancel: () => void;
@@ -1721,6 +1702,7 @@ function VerifyPin({ user, title, onVerified, onCancel }: {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [shake, setShake] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
   const bioEnrolled = typeof window !== "undefined" && !!localStorage.getItem("vaultx_bio_" + user.id);
 
   const verify = useCallback(async (value: string) => {
@@ -1744,28 +1726,12 @@ function VerifyPin({ user, title, onVerified, onCancel }: {
     }
   }, [onVerified]);
 
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (/^[0-9]$/.test(e.key)) {
-        e.preventDefault();
-        if (busy || pin.length >= 6) return;
-        const next = pin + e.key;
-        setError(""); setPin(next);
-        if (next.length === 6) verify(next);
-      } else if (e.key === "Backspace") {
-        e.preventDefault();
-        setPin((p) => p.slice(0, -1)); setError("");
-      }
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [pin, busy, verify]);
-
-  function press(d: string) {
-    if (busy || pin.length >= 6) return;
-    const next = pin + d;
-    setError(""); setPin(next);
-    if (next.length === 6) verify(next);
+  function onPinInput(e: React.ChangeEvent<HTMLInputElement>) {
+    if (busy) return;
+    const v = e.target.value.replace(/\D/g, "").slice(0, 6);
+    setError("");
+    setPin(v);
+    if (v.length === 6) verify(v);
   }
 
   async function bioVerify() {
@@ -1788,10 +1754,27 @@ function VerifyPin({ user, title, onVerified, onCancel }: {
       <p className="text-[17px] font-light text-white mb-1">Confirm it&apos;s you</p>
       <p className="text-[12px] font-light text-zinc-500 mb-6 text-center max-w-[260px]">{title}</p>
 
-      <motion.div animate={shake ? { x: [0, -8, 8, -6, 6, 0] } : {}} transition={{ duration: 0.4 }}>
+      <motion.div
+        animate={shake ? { x: [0, -8, 8, -6, 6, 0] } : {}} transition={{ duration: 0.4 }}
+        className="relative py-3 px-4 cursor-text"
+        onClick={() => inputRef.current?.focus()}
+      >
         <PinDots count={pin.length} error={!!error} />
+        <input
+          ref={inputRef}
+          type="password"
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          autoFocus
+          value={pin}
+          onChange={onPinInput}
+          maxLength={6}
+          aria-label="Security PIN"
+          className="absolute inset-0 w-full h-full opacity-0"
+          style={{ caretColor: "transparent" }}
+        />
       </motion.div>
-      <div className="h-5 mt-3 mb-5">
+      <div className="h-5 mt-2 mb-3">
         {error && <p className="text-[11px] font-light text-red-400">{error}</p>}
         {busy && !error && (
           <p className="text-[11px] font-light text-zinc-600 flex items-center gap-1.5">
@@ -1799,12 +1782,17 @@ function VerifyPin({ user, title, onVerified, onCancel }: {
           </p>
         )}
       </div>
+      <p className="text-[11px] font-light text-zinc-600">Type your 6-digit PIN</p>
 
-      <Keypad onDigit={press} onBack={() => setPin((p) => p.slice(0, -1))}
-        onBio={bioEnrolled ? bioVerify : undefined} busy={busy} />
+      {bioEnrolled && (
+        <button onClick={bioVerify} disabled={busy}
+          className="mt-5 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/[0.05] border border-white/[0.08] text-zinc-300 hover:text-white text-[12px] font-normal transition-colors disabled:opacity-50">
+          <Fingerprint className="w-4 h-4 text-blue-400" /> Use Face ID / fingerprint
+        </button>
+      )}
 
       <button onClick={onCancel}
-        className="mt-6 text-[12px] font-light text-zinc-600 hover:text-zinc-300 transition-colors">
+        className="mt-5 text-[12px] font-light text-zinc-600 hover:text-zinc-300 transition-colors">
         Cancel
       </button>
     </div>
@@ -1820,10 +1808,10 @@ function GateScreen({ user, hasPin, onUnlock }: {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [shake, setShake] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
   const bioEnrolled = typeof window !== "undefined" && !!localStorage.getItem("vaultx_bio_" + user.id);
 
   function finishUnlock() {
-    try { sessionStorage.setItem("vaultx_unlocked", user.id); } catch { /* ignore */ }
     onUnlock();
   }
   function fail(msg: string) {
@@ -1877,34 +1865,18 @@ function GateScreen({ user, hasPin, onUnlock }: {
     }
   }, [phase, first]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function press(d: string) {
-    if (busy || pin.length >= 6) return;
-    const next = pin + d;
+  function onPinInput(e: React.ChangeEvent<HTMLInputElement>) {
+    if (busy) return;
+    const v = e.target.value.replace(/\D/g, "").slice(0, 6);
     setError("");
-    setPin(next);
-    if (next.length === 6) complete(next);
+    setPin(v);
+    if (v.length === 6) complete(v);
   }
 
-  // Let the user type the PIN on a physical keyboard, not just the on-screen pad.
+  // Keep the field focused so typing always lands on the PIN.
   useEffect(() => {
-    if (phase === "create-bio") return;
-    function onKey(e: KeyboardEvent) {
-      if (/^[0-9]$/.test(e.key)) {
-        e.preventDefault();
-        if (busy || pin.length >= 6) return;
-        const next = pin + e.key;
-        setError("");
-        setPin(next);
-        if (next.length === 6) complete(next);
-      } else if (e.key === "Backspace") {
-        e.preventDefault();
-        setPin((p) => p.slice(0, -1));
-        setError("");
-      }
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [phase, pin, busy, complete]);
+    if (phase !== "create-bio") inputRef.current?.focus();
+  }, [phase]);
 
   async function bioUnlock() {
     setBusy(true); setError("");
@@ -1968,10 +1940,28 @@ function GateScreen({ user, hasPin, onUnlock }: {
           </div>
         ) : (
           <>
-            <motion.div animate={shake ? { x: [0, -8, 8, -6, 6, 0] } : {}} transition={{ duration: 0.4 }}>
+            {/* Tap the dots to bring up your keyboard; typing fills the PIN. */}
+            <motion.div
+              animate={shake ? { x: [0, -8, 8, -6, 6, 0] } : {}} transition={{ duration: 0.4 }}
+              className="relative py-3 px-4 cursor-text"
+              onClick={() => inputRef.current?.focus()}
+            >
               <PinDots count={pin.length} error={!!error} />
+              <input
+                ref={inputRef}
+                type="password"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                autoFocus
+                value={pin}
+                onChange={onPinInput}
+                maxLength={6}
+                aria-label="Security PIN"
+                className="absolute inset-0 w-full h-full opacity-0"
+                style={{ caretColor: "transparent" }}
+              />
             </motion.div>
-            <div className="h-5 mt-3 mb-5">
+            <div className="h-5 mt-2 mb-3">
               {error && <p className="text-[11px] font-light text-red-400">{error}</p>}
               {busy && !error && (
                 <p className="text-[11px] font-light text-zinc-600 flex items-center gap-1.5">
@@ -1979,8 +1969,13 @@ function GateScreen({ user, hasPin, onUnlock }: {
                 </p>
               )}
             </div>
-            <Keypad onDigit={press} onBack={() => setPin((p) => p.slice(0, -1))}
-              onBio={phase === "unlock" && bioEnrolled ? bioUnlock : undefined} busy={busy} />
+            <p className="text-[11px] font-light text-zinc-600">Type your 6-digit PIN</p>
+            {phase === "unlock" && bioEnrolled && (
+              <button onClick={bioUnlock} disabled={busy}
+                className="mt-5 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/[0.05] border border-white/[0.08] text-zinc-300 hover:text-white text-[12px] font-normal transition-colors disabled:opacity-50">
+                <Fingerprint className="w-4 h-4 text-blue-400" /> Unlock with Face ID / fingerprint
+              </button>
+            )}
           </>
         )}
       </div>
