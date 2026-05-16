@@ -15,14 +15,23 @@
  * works exactly the same with or without it.
  */
 
-export async function sendEmail(to: string, subject: string, html: string): Promise<void> {
+export async function sendEmail(
+  to: string,
+  subject: string,
+  html: string
+): Promise<{ ok: boolean; error?: string }> {
   const key = process.env.RESEND_API_KEY;
-  if (!key || !to) return; // not configured — skip silently
+  if (!key) {
+    console.warn("[notify] RESEND_API_KEY is not set — email skipped.");
+    return { ok: false, error: "RESEND_API_KEY is not set" };
+  }
+  if (!to) return { ok: false, error: "No recipient address" };
+
   const from = process.env.RESEND_FROM || "VaultX <onboarding@resend.dev>";
   try {
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 8000);
-    await fetch("https://api.resend.com/emails", {
+    const timer = setTimeout(() => ctrl.abort(), 9000);
+    const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -32,8 +41,22 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
       signal: ctrl.signal,
     });
     clearTimeout(timer);
-  } catch {
-    /* email is best-effort — never block or fail the request because of it */
+
+    const data = await res.json().catch(() => ({} as Record<string, unknown>));
+    if (!res.ok) {
+      const msg = String(
+        (data as { message?: string; name?: string }).message ||
+        (data as { name?: string }).name ||
+        `HTTP ${res.status}`
+      );
+      console.error("[notify] Resend rejected the email:", msg);
+      return { ok: false, error: msg };
+    }
+    return { ok: true };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "network error";
+    console.error("[notify] Resend request failed:", msg);
+    return { ok: false, error: msg };
   }
 }
 

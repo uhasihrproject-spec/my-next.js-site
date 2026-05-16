@@ -230,6 +230,22 @@ export async function deleteUser(id: string): Promise<void> {
   await writeData("sessions", sessions.filter((s) => s.userId !== id));
 }
 
+/**
+ * Wipe all user accounts (and their deposits/withdrawals), chat messages and
+ * one-time codes. Admin accounts, admin sessions and platform settings are
+ * preserved so the admin stays signed in.
+ */
+export async function resetPlatformData(): Promise<void> {
+  const users = await getUsers();
+  const admins = users.filter((u) => u.role === "admin");
+  await saveUsers(admins);
+  const adminIds = new Set(admins.map((u) => u.id));
+  const sessions = await getSessions();
+  await writeData("sessions", sessions.filter((s) => adminIds.has(s.userId)));
+  await writeData("messages", []);
+  await writeData("otps", []);
+}
+
 // ─── Settings ────────────────────────────────────────────────────────────────
 
 export async function getSettings(): Promise<Settings> {

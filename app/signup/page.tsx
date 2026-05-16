@@ -22,7 +22,7 @@ type Step = "details" | "phone" | "face";
 const STEP_LIST: { id: Step; label: string; sub: string }[] = [
   { id: "details", label: "Personal details", sub: "Tell us about yourself" },
   { id: "phone",   label: "Phone verification", sub: "Confirm your number" },
-  { id: "face",    label: "Identity check", sub: "Quick liveness scan" },
+  { id: "face",    label: "Liveness check", sub: "Prove you're really there" },
 ];
 
 const fieldCls =
@@ -97,7 +97,6 @@ function DetailsStep({ form, setForm, agree, setAgree, consent, setConsent, dir,
       setError("Please complete every field — all details are required for verification."); return;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) { setError("Enter a valid email address"); return; }
-    // Age check — must be 18+
     {
       const birth = new Date(form.dob);
       const today = new Date();
@@ -136,7 +135,7 @@ function DetailsStep({ form, setForm, agree, setAgree, consent, setConsent, dir,
           </div>
           <div className="relative">
             <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-600" />
-            <input type="tel" value={form.phone} onChange={set("phone")} placeholder="Phone number (with country code)" className={fieldCls} />
+            <input type="tel" value={form.phone} onChange={set("phone")} placeholder="Phone (with country code, e.g. +1…)" className={fieldCls} />
           </div>
           <div className="relative">
             <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-600 z-10" />
@@ -190,7 +189,7 @@ function DetailsStep({ form, setForm, agree, setAgree, consent, setConsent, dir,
       <div className="space-y-2.5">
         {[
           { state: agree, toggle: () => setAgree(!agree), node: <>I agree to the <Link href="/terms" target="_blank" className="text-blue-400 hover:underline">Terms of Service</Link> and <Link href="/privacy" target="_blank" className="text-blue-400 hover:underline">Privacy Policy</Link>.</> },
-          { state: consent, toggle: () => setConsent(!consent), node: <>I consent to phone &amp; identity (KYC) verification of the details I&apos;ve provided.</> },
+          { state: consent, toggle: () => setConsent(!consent), node: <>I consent to phone &amp; identity verification of the details I&apos;ve provided.</> },
         ].map(({ state, toggle, node }, i) => (
           <button key={i} type="button" onClick={toggle} className="flex items-start gap-2.5 text-left w-full group">
             <span className={`w-4 h-4 rounded mt-0.5 shrink-0 flex items-center justify-center border transition-colors ${
@@ -219,6 +218,7 @@ function PhoneStep({ phone, dir, onBack, onVerified }: {
   const [code, setCode] = useState("");
   const [devCode, setDevCode] = useState("");
   const [smsSent, setSmsSent] = useState(false);
+  const [smsNote, setSmsNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [cooldown, setCooldown] = useState(0);
@@ -242,6 +242,7 @@ function PhoneStep({ phone, dir, onBack, onVerified }: {
       setCode("");
       setDevCode(d.devCode || "");
       setSmsSent(!!d.sms);
+      setSmsNote(d.smsNote || "");
       setCooldown(30);
     } catch { setError("Network error. Please try again."); }
     finally { setBusy(false); }
@@ -274,7 +275,7 @@ function PhoneStep({ phone, dir, onBack, onVerified }: {
       <p className="text-[13px] font-light text-zinc-500 mb-6">
         {sent
           ? <>Enter the 6-digit code we sent to <span className="text-zinc-300">{phone}</span>.</>
-          : <>We&apos;ll send a one-time code to <span className="text-zinc-300">{phone}</span> to confirm it&apos;s really you.</>}
+          : <>We&apos;ll text a one-time code to <span className="text-zinc-300">{phone}</span> to confirm your number.</>}
       </p>
 
       {error && (
@@ -297,7 +298,7 @@ function PhoneStep({ phone, dir, onBack, onVerified }: {
             <div className="mt-4 flex items-center gap-2 px-3 py-2.5 rounded-lg bg-emerald-400/[0.06] border border-emerald-400/15">
               <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
               <p className="text-[11px] font-light text-emerald-300/80">
-                Code texted to <span className="text-emerald-200">{phone}</span> — it may take a few seconds to arrive.
+                Code texted to <span className="text-emerald-200">{phone}</span> — it may take a few seconds.
               </p>
             </div>
           )}
@@ -306,8 +307,8 @@ function PhoneStep({ phone, dir, onBack, onVerified }: {
             <div className="mt-4 flex items-start gap-2 px-3 py-2.5 rounded-lg bg-amber-400/[0.06] border border-amber-400/15">
               <AlertCircle className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
               <p className="text-[11px] font-light text-amber-300/80 leading-relaxed">
-                Free SMS limit reached — demo mode: your code is{" "}
-                <span className="font-mono font-normal text-amber-200">{devCode}</span>.
+                We couldn&apos;t text your phone{smsNote ? ` (${smsNote})` : ""}. Use this code to continue:{" "}
+                <span className="font-mono font-normal text-amber-200">{devCode}</span>
               </p>
             </div>
           )}
@@ -330,12 +331,15 @@ function PhoneStep({ phone, dir, onBack, onVerified }: {
   );
 }
 
-/* ════════ Step 3 — Facial liveness ════════ */
-const PROMPTS = [
-  "Position your face inside the circle",
-  "Blink your eyes slowly",
-  "Turn your head left, then right",
-  "Hold still — capturing your scan",
+/* ════════ Step 3 — Liveness check (real motion detection) ════════
+   This genuinely analyses the camera: it samples frames and measures
+   pixel motion in the face region. Each prompt only completes when real
+   movement is detected — a static photo produces ~zero motion and will
+   not pass. No external API or model needed.                          */
+const PROMPTS: { label: string; need: number }[] = [
+  { label: "Center your face inside the circle", need: 45 },
+  { label: "Blink your eyes a few times", need: 110 },
+  { label: "Slowly turn your head left, then right", need: 150 },
 ];
 
 function FaceStep({ dir, registering, registerError, onBack, onComplete, onRetryRegister }: {
@@ -343,12 +347,19 @@ function FaceStep({ dir, registering, registerError, onBack, onComplete, onRetry
   onBack: () => void; onComplete: () => void; onRetryRegister: () => void;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const sampleRef = useRef<HTMLCanvasElement>(null);
+  const captureRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const prevFrame = useRef<Uint8ClampedArray | null>(null);
+  const motionAcc = useRef(0);
+
   const [phase, setPhase] = useState<"intro" | "running" | "done">("intro");
   const [camReady, setCamReady] = useState(false);
   const [camError, setCamError] = useState(false);
   const [promptIndex, setPromptIndex] = useState(0);
+  const [promptFill, setPromptFill] = useState(0);
+  const [liveMotion, setLiveMotion] = useState(0);
+  const [hint, setHint] = useState("");
   const [photo, setPhoto] = useState("");
   const [retryKey, setRetryKey] = useState(0);
 
@@ -357,7 +368,7 @@ function FaceStep({ dir, registering, registerError, onBack, onComplete, onRetry
     streamRef.current = null;
   }, []);
 
-  // Camera setup
+  /* Camera setup */
   useEffect(() => {
     let cancelled = false;
     setCamError(false); setCamReady(false);
@@ -382,9 +393,9 @@ function FaceStep({ dir, registering, registerError, onBack, onComplete, onRetry
     return () => { cancelled = true; stopCamera(); };
   }, [retryKey, stopCamera]);
 
-  // Liveness sequence
+  /* Final photo capture */
   const capture = useCallback(() => {
-    const v = videoRef.current, c = canvasRef.current;
+    const v = videoRef.current, c = captureRef.current;
     if (v && c && v.videoWidth) {
       const size = Math.min(v.videoWidth, v.videoHeight);
       c.width = 260; c.height = 260;
@@ -396,22 +407,74 @@ function FaceStep({ dir, registering, registerError, onBack, onComplete, onRetry
     }
     stopCamera();
     setPhase("done");
-    setTimeout(() => onComplete(), 1500);
+    setTimeout(() => onComplete(), 1400);
   }, [stopCamera, onComplete]);
 
+  /* Motion sampling loop — measures real frame-to-frame movement */
+  useEffect(() => {
+    if (phase !== "running" || !camReady) return;
+    let active = true, raf = 0, last = 0;
+    const N = 64;
+    const sctx = sampleRef.current?.getContext("2d", { willReadFrequently: true });
+    prevFrame.current = null;
+
+    function tick(t: number) {
+      if (!active) return;
+      if (t - last > 85) {
+        last = t;
+        const v = videoRef.current;
+        if (v && sctx && v.videoWidth) {
+          const size = Math.min(v.videoWidth, v.videoHeight) * 0.62;
+          sctx.drawImage(v, (v.videoWidth - size) / 2, (v.videoHeight - size) / 2, size, size, 0, 0, N, N);
+          const cur = sctx.getImageData(0, 0, N, N).data;
+          const prev = prevFrame.current;
+          if (prev) {
+            let diff = 0;
+            for (let i = 0; i < cur.length; i += 4) {
+              const a = cur[i] + cur[i + 1] + cur[i + 2];
+              const b = prev[i] + prev[i + 1] + prev[i + 2];
+              const dd = a > b ? a - b : b - a;
+              if (dd > 26) diff += dd; // ignore sensor noise
+            }
+            const score = diff / (N * N);
+            setLiveMotion(score);
+            if (score > 6) motionAcc.current += score;
+          }
+          prevFrame.current = cur;
+        }
+      }
+      raf = requestAnimationFrame(tick);
+    }
+    raf = requestAnimationFrame(tick);
+    return () => { active = false; cancelAnimationFrame(raf); };
+  }, [phase, camReady]);
+
+  /* Prompt progression — advances only on detected motion */
   useEffect(() => {
     if (phase !== "running") return;
-    setPromptIndex(0);
-    let idx = 0;
+    motionAcc.current = 0;
+    setPromptFill(0); setHint("");
+    const need = PROMPTS[promptIndex].need;
+    let elapsed = 0;
     const id = setInterval(() => {
-      idx += 1;
-      if (idx >= PROMPTS.length) { clearInterval(id); capture(); }
-      else setPromptIndex(idx);
-    }, 2300);
+      elapsed += 200;
+      setPromptFill(Math.min(1, motionAcc.current / need));
+      if (motionAcc.current >= need) {
+        clearInterval(id);
+        if (promptIndex >= PROMPTS.length - 1) capture();
+        else setPromptIndex((i) => i + 1);
+      } else if (elapsed >= 6000) {
+        setHint("Keep your face centred and well lit, then follow the prompt.");
+      }
+    }, 200);
     return () => clearInterval(id);
-  }, [phase, capture]);
+  }, [phase, promptIndex, capture]);
 
-  const progress = phase === "done" ? 1 : phase === "running" ? (promptIndex + 1) / PROMPTS.length : 0;
+  const progress = phase === "done"
+    ? 1
+    : phase === "running"
+      ? (promptIndex + promptFill) / PROMPTS.length
+      : 0;
   const RING = 2 * Math.PI * 130;
 
   return (
@@ -419,12 +482,11 @@ function FaceStep({ dir, registering, registerError, onBack, onComplete, onRetry
       <div className="w-12 h-12 rounded-xl bg-blue-500/[0.1] border border-blue-500/20 flex items-center justify-center mb-5">
         <ScanFace className="w-5 h-5 text-blue-400" />
       </div>
-      <h2 className="text-[20px] font-light text-white mb-1.5">Facial verification</h2>
+      <h2 className="text-[20px] font-light text-white mb-1.5">Liveness check</h2>
       <p className="text-[13px] font-light text-zinc-500 mb-6">
-        A quick liveness scan confirms you&apos;re a real person. Your camera feed stays on your device.
+        We analyse your camera to confirm you&apos;re a real, present person. Nothing is uploaded — it runs on your device.
       </p>
 
-      {/* Camera circle */}
       <div className="flex flex-col items-center">
         <div className="relative w-[280px] h-[280px]">
           <svg className="absolute inset-0 -rotate-90" width="280" height="280" viewBox="0 0 280 280">
@@ -434,7 +496,7 @@ function FaceStep({ dir, registering, registerError, onBack, onComplete, onRetry
               stroke={phase === "done" ? "#34d399" : "#3b82f6"} strokeWidth="3" strokeLinecap="round"
               strokeDasharray={RING}
               animate={{ strokeDashoffset: RING * (1 - progress) }}
-              transition={{ duration: 0.5, ease: "easeOut" }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
             />
           </svg>
           <div className="absolute inset-[18px] rounded-full overflow-hidden bg-[#0c0c0d] border border-white/[0.06]">
@@ -447,8 +509,7 @@ function FaceStep({ dir, registering, registerError, onBack, onComplete, onRetry
             ) : (
               <>
                 <video ref={videoRef} muted playsInline
-                  className="w-full h-full object-cover"
-                  style={{ transform: "scaleX(-1)" }} />
+                  className="w-full h-full object-cover" style={{ transform: "scaleX(-1)" }} />
                 {photo && phase === "done" && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={photo} alt="scan" className="absolute inset-0 w-full h-full object-cover" style={{ transform: "scaleX(-1)" }} />
@@ -469,16 +530,34 @@ function FaceStep({ dir, registering, registerError, onBack, onComplete, onRetry
             </motion.div>
           )}
         </div>
-        <canvas ref={canvasRef} className="hidden" />
+        <canvas ref={sampleRef} className="hidden" />
+        <canvas ref={captureRef} className="hidden" />
+
+        {/* Live motion meter */}
+        {phase === "running" && (
+          <div className="w-[200px] mt-4">
+            <div className="h-1 rounded-full bg-white/[0.06] overflow-hidden">
+              <motion.div className="h-full rounded-full bg-blue-500"
+                animate={{ width: `${Math.min(100, liveMotion * 1.4)}%` }}
+                transition={{ duration: 0.15 }} />
+            </div>
+            <p className="text-[9px] font-light text-zinc-700 text-center mt-1.5 tracking-wide uppercase">
+              {liveMotion > 8 ? "Motion detected" : "Waiting for movement…"}
+            </p>
+          </div>
+        )}
 
         {/* Prompt / status */}
-        <div className="h-12 mt-5 flex items-center justify-center text-center">
+        <div className="h-12 mt-4 flex flex-col items-center justify-center text-center">
           {phase === "intro" && !camError && (
-            <p className="text-[12px] font-light text-zinc-500">Make sure your face is well lit, then start the scan.</p>
+            <p className="text-[12px] font-light text-zinc-500">Make sure your face is well lit, then start the check.</p>
           )}
           {phase === "running" && (
             <motion.p key={promptIndex} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-              className="text-[13px] font-normal text-blue-300">{PROMPTS[promptIndex]}</motion.p>
+              className="text-[13px] font-normal text-blue-300">{PROMPTS[promptIndex].label}</motion.p>
+          )}
+          {phase === "running" && hint && (
+            <p className="text-[10.5px] font-light text-amber-400/80 mt-1">{hint}</p>
           )}
           {phase === "done" && registering && (
             <p className="text-[12px] font-light text-zinc-500 flex items-center gap-2">
@@ -486,11 +565,9 @@ function FaceStep({ dir, registering, registerError, onBack, onComplete, onRetry
             </p>
           )}
           {phase === "done" && !registering && !registerError && (
-            <p className="text-[13px] font-normal text-emerald-400">Identity confirmed</p>
+            <p className="text-[13px] font-normal text-emerald-400">Liveness confirmed</p>
           )}
-          {registerError && (
-            <p className="text-[12px] font-light text-red-400">{registerError}</p>
-          )}
+          {registerError && <p className="text-[12px] font-light text-red-400">{registerError}</p>}
         </div>
       </div>
 
@@ -502,9 +579,9 @@ function FaceStep({ dir, registering, registerError, onBack, onComplete, onRetry
             <RotateCw className="w-4 h-4" /> Retry camera access
           </button>
         ) : (
-          <button onClick={() => setPhase("running")} disabled={!camReady}
+          <button onClick={() => { setPromptIndex(0); setPhase("running"); }} disabled={!camReady}
             className="w-full flex items-center justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-[13px] font-normal rounded-lg transition-colors">
-            <ScanFace className="w-4 h-4" /> Start liveness scan
+            <ScanFace className="w-4 h-4" /> Start liveness check
           </button>
         )
       )}
@@ -610,7 +687,7 @@ export default function SignupPage() {
           <div className="flex items-start gap-3 mt-9">
             <Snowflake className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
             <p className="text-[12px] font-light text-zinc-600 leading-relaxed">
-              Your data is encrypted end-to-end. Camera footage from the liveness check never leaves your device.
+              Your data is encrypted end-to-end. The liveness check runs entirely on your device — camera footage is never uploaded.
             </p>
           </div>
         </div>

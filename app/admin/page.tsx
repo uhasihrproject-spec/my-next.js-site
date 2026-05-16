@@ -569,6 +569,12 @@ export default function AdminPage() {
   const [withdrawalFilter, setWithdrawalFilter] = useState<"all" | "active">("all");
   const [hasPin, setHasPin] = useState(false);
   const [adminLocked, setAdminLocked] = useState(true);
+  const [testEmail, setTestEmail] = useState("");
+  const [testPhone, setTestPhone] = useState("");
+  const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [testing, setTesting] = useState<"email" | "sms" | null>(null);
+  const [resetConfirm, setResetConfirm] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   // Drawer + sheet state
   const [userDrawer, setUserDrawer] = useState<string | null>(null);
@@ -674,6 +680,32 @@ export default function AdminPage() {
       }
     } catch { showToast("Network error", "error"); }
     finally { setDeletingUser(null); }
+  }
+
+  async function runTest(type: "email" | "sms") {
+    setTesting(type); setTestResult(null);
+    try {
+      const res = await fetch("/api/admin/test-notify", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type, to: type === "email" ? testEmail : testPhone }),
+      });
+      const d = await res.json();
+      setTestResult({ ok: !!d.ok, msg: d.ok ? d.message : (d.error || "Test failed") });
+    } catch { setTestResult({ ok: false, msg: "Network error" }); }
+    finally { setTesting(null); }
+  }
+
+  async function runReset() {
+    setResetting(true);
+    try {
+      const res = await fetch("/api/admin/reset", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirm: "RESET" }),
+      });
+      if (res.ok) { setResetConfirm(false); await fetchAll(); showToast("All platform data cleared"); }
+      else showToast("Reset failed", "error");
+    } catch { showToast("Network error", "error"); }
+    finally { setResetting(false); }
   }
 
   async function handleDepositAction(dep: DepositRow, action: string, note: string) {
@@ -1437,6 +1469,77 @@ export default function AdminPage() {
                     {savingSettings ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                     Save settings
                   </button>
+
+                  {/* ─ Notification test ─ */}
+                  <div className="bg-[#1a1a1e] border border-white/[0.05] rounded-xl p-5">
+                    <p className="text-[10px] font-normal tracking-widest text-zinc-600 uppercase mb-1">Notification test</p>
+                    <p className="text-[11px] font-light text-zinc-600 mb-4">
+                      Send a real test email / SMS and see the exact result — use this to confirm your Resend &amp; TextBelt keys work.
+                    </p>
+                    <div className="space-y-2.5">
+                      <div className="flex gap-2">
+                        <input type="email" value={testEmail} onChange={(e) => setTestEmail(e.target.value)}
+                          placeholder="you@example.com"
+                          className="flex-1 min-w-0 px-3 py-2 bg-[#111113] border border-white/[0.07] rounded-lg text-white text-[13px] focus:outline-none focus:border-blue-500/30 placeholder:text-zinc-700" />
+                        <button onClick={() => runTest("email")} disabled={testing !== null}
+                          className="px-4 py-2 bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] text-zinc-200 text-[12px] font-normal rounded-lg transition-colors disabled:opacity-50 flex items-center gap-1.5 shrink-0">
+                          {testing === "email" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                          Test email
+                        </button>
+                      </div>
+                      <div className="flex gap-2">
+                        <input type="tel" value={testPhone} onChange={(e) => setTestPhone(e.target.value)}
+                          placeholder="+1 555 000 0000"
+                          className="flex-1 min-w-0 px-3 py-2 bg-[#111113] border border-white/[0.07] rounded-lg text-white text-[13px] focus:outline-none focus:border-blue-500/30 placeholder:text-zinc-700" />
+                        <button onClick={() => runTest("sms")} disabled={testing !== null}
+                          className="px-4 py-2 bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] text-zinc-200 text-[12px] font-normal rounded-lg transition-colors disabled:opacity-50 flex items-center gap-1.5 shrink-0">
+                          {testing === "sms" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MessageSquare className="w-3.5 h-3.5" />}
+                          Test SMS
+                        </button>
+                      </div>
+                      {testResult && (
+                        <div className={`px-3 py-2.5 rounded-lg text-[12px] font-light ${
+                          testResult.ok
+                            ? "bg-emerald-500/[0.08] border border-emerald-500/20 text-emerald-300"
+                            : "bg-red-500/[0.08] border border-red-500/20 text-red-300"
+                        }`}>
+                          {testResult.msg}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* ─ Danger zone ─ */}
+                  <div className="bg-red-500/[0.04] border border-red-500/15 rounded-xl p-5">
+                    <div className="flex items-center gap-2 mb-1">
+                      <AlertTriangle className="w-4 h-4 text-red-400" />
+                      <p className="text-[13px] font-normal text-red-300">Danger zone — clear all data</p>
+                    </div>
+                    <p className="text-[11px] font-light text-zinc-600 mb-3 leading-relaxed">
+                      Permanently deletes every user account, deposit, withdrawal, chat message and verification
+                      code. Admin accounts and platform settings are kept. This cannot be undone.
+                    </p>
+                    <button
+                      onClick={() => { if (resetConfirm) runReset(); else setResetConfirm(true); }}
+                      disabled={resetting}
+                      className={`w-full py-2.5 rounded-xl text-[12px] font-normal transition-colors flex items-center justify-center gap-2 ${
+                        resetConfirm
+                          ? "bg-red-600 hover:bg-red-500 text-white"
+                          : "bg-red-500/10 border border-red-500/25 text-red-400 hover:bg-red-500/15"
+                      }`}
+                    >
+                      {resetting
+                        ? <Loader2 className="w-4 h-4 animate-spin" />
+                        : <Trash2 className="w-3.5 h-3.5" />}
+                      {resetting ? "Clearing…" : resetConfirm ? "Tap again to permanently clear everything" : "Clear all platform data"}
+                    </button>
+                    {resetConfirm && !resetting && (
+                      <button onClick={() => setResetConfirm(false)}
+                        className="w-full mt-2 py-1.5 text-[11px] font-light text-zinc-600 hover:text-zinc-400 transition-colors">
+                        Cancel
+                      </button>
+                    )}
+                  </div>
                 </div>
               </motion.div>
             )}
