@@ -265,35 +265,49 @@ function BalanceStack({ user, activeCoins, locked, hidden, onToggleHidden }: {
   useEffect(() => { if (index >= n) setIndex(0); }, [n, index]);
   const safeIndex = index < n ? index : 0;
 
+  // A stable, readable vault number derived from the account id.
+  const rawId = (user.id.replace(/[^a-zA-Z0-9]/g, "").toUpperCase() + "00000000").slice(-8);
+  const vaultNo = `VX-${rawId.slice(0, 4)}-${rawId.slice(4)}`;
+
   /* ── No assets — single default card ── */
   if (n === 0) {
     return (
       <div className="relative mb-7">
-        <div className="absolute left-1/2 -translate-x-1/2 -bottom-3 w-[90%] h-full rounded-2xl bg-[#15151a] border border-white/[0.05]" />
+        <div className="absolute left-1/2 -translate-x-1/2 -bottom-3 w-[90%] h-full rounded-2xl bg-[#101733] border border-white/[0.05]" />
         <motion.div
           initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
           transition={{ type: "spring", damping: 22, stiffness: 190 }}
-          className="relative rounded-2xl p-5 overflow-hidden border border-white/[0.09]"
-          style={{ background: "linear-gradient(140deg, #1c2233 0%, #13141b 52%, #0e0f14 100%)" }}
+          className="relative rounded-2xl p-5 overflow-hidden border border-white/[0.1]"
+          style={{ backgroundColor: "#0a0e1c", backgroundImage: "linear-gradient(150deg, #243a72 0%, #15214a 48%, #0b1024 100%)" }}
         >
-          <div className="flex items-center justify-between mb-7">
-            <div className="flex items-center gap-2">
-              <div className="w-5 h-5 rounded-md bg-blue-500 flex items-center justify-center">
-                <TrendingUp className="w-2.5 h-2.5 text-white" />
+          <div className="absolute -top-16 -right-12 w-48 h-48 rounded-full pointer-events-none"
+            style={{ background: "radial-gradient(circle, rgba(59,130,246,0.28) 0%, transparent 70%)" }} />
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-7">
+              <div className="flex items-center gap-2">
+                <div className="w-5 h-5 rounded-md bg-blue-500 flex items-center justify-center">
+                  <TrendingUp className="w-2.5 h-2.5 text-white" />
+                </div>
+                <span className="text-[12px] font-normal text-white tracking-wide">VaultX</span>
               </div>
-              <span className="text-[12px] font-normal text-white tracking-wide">VaultX</span>
+              <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-white/[0.07] border border-white/[0.1]">
+                <Lock className="w-2.5 h-2.5 text-blue-200/70" />
+                <span className="text-[9px] font-light text-blue-100/70 tracking-wide">Secured</span>
+              </div>
             </div>
-            <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-white/[0.05] border border-white/[0.08]">
-              <Lock className="w-2.5 h-2.5 text-zinc-400" />
-              <span className="text-[9px] font-light text-zinc-400 tracking-wide">Secured</span>
+            <p className="text-[10px] font-normal tracking-[0.18em] text-blue-300/60 uppercase mb-1.5">Portfolio</p>
+            <p className="text-[28px] font-light text-white font-mono leading-none mb-2">0.00000</p>
+            <p className="text-[11px] font-light text-blue-100/45 mb-7">No assets yet — make your first deposit to begin.</p>
+            <div className="flex items-end justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[8px] font-normal tracking-[0.16em] text-blue-200/40 uppercase mb-1">Account holder</p>
+                <p className="text-[11px] font-light text-zinc-200 tracking-wide uppercase truncate">{user.name}</p>
+              </div>
+              <div className="text-right shrink-0">
+                <p className="text-[8px] font-normal tracking-[0.16em] text-blue-200/40 uppercase mb-1">Vault number</p>
+                <p className="text-[11px] font-mono text-blue-200/90 tracking-wider">{vaultNo}</p>
+              </div>
             </div>
-          </div>
-          <p className="text-[10px] font-normal tracking-[0.18em] text-blue-300/50 uppercase mb-1.5">Portfolio</p>
-          <p className="text-[28px] font-light text-white font-mono leading-none mb-2">0.00000</p>
-          <p className="text-[11px] font-light text-zinc-500 mb-7">No assets yet — make your first deposit to begin.</p>
-          <div>
-            <p className="text-[8px] font-normal tracking-[0.16em] text-zinc-600 uppercase mb-1">Account holder</p>
-            <p className="text-[12px] font-light text-zinc-300 tracking-wide uppercase truncate max-w-[200px]">{user.name}</p>
           </div>
         </motion.div>
       </div>
@@ -307,7 +321,7 @@ function BalanceStack({ user, activeCoins, locked, hidden, onToggleHidden }: {
     .sort((a, b) => b.pos - a.pos);
 
   return (
-    <div className="relative mb-7" style={{ height: 224 }}>
+    <div className="relative mb-7" style={{ height: 270 }}>
       {cards.map(({ coin, pos }) => {
         const isFront = pos === 0;
         const bal = (user.balance[coin] || 0) + (user.earnings[coin] || 0);
@@ -326,15 +340,20 @@ function BalanceStack({ user, activeCoins, locked, hidden, onToggleHidden }: {
             transition={{ type: "spring", damping: 26, stiffness: 240 }}
             style={{
               zIndex: 10 - pos,
-              backgroundColor: "#0e0f14",
-              backgroundImage: `linear-gradient(140deg, ${c}26 0%, #13141b 55%, #0e0f14 100%)`,
+              backgroundColor: "#0a0e1c",
+              // Opaque blue card, with the coin's own colour woven into the top corner.
+              backgroundImage: `linear-gradient(150deg, ${c}40 0%, #17244e 38%, #0c1330 74%, #0a0e1c 100%)`,
             }}
-            className={`absolute inset-x-0 top-0 h-[196px] rounded-2xl p-5 overflow-hidden border border-white/[0.09] ${
+            className={`absolute inset-x-0 top-0 h-[240px] rounded-2xl p-5 overflow-hidden border border-white/[0.1] ${
               isFront && n > 1 ? "cursor-grab active:cursor-grabbing" : ""
             }`}
           >
-            <div className="absolute -top-14 -right-10 w-44 h-44 rounded-full pointer-events-none"
-              style={{ background: `radial-gradient(circle, ${c}30 0%, transparent 70%)` }} />
+            {/* coin-colour glow */}
+            <div className="absolute -top-16 -right-12 w-52 h-52 rounded-full pointer-events-none"
+              style={{ background: `radial-gradient(circle, ${c}3d 0%, transparent 70%)` }} />
+            {/* blue glow */}
+            <div className="absolute -bottom-20 -left-14 w-52 h-52 rounded-full pointer-events-none"
+              style={{ background: "radial-gradient(circle, rgba(59,130,246,0.22) 0%, transparent 70%)" }} />
             {/* Depth scrim — dims cards behind the front one (kept fully opaque). */}
             <motion.div
               className="absolute inset-0 z-20 bg-black pointer-events-none"
@@ -354,12 +373,12 @@ function BalanceStack({ user, activeCoins, locked, hidden, onToggleHidden }: {
                 <div className="flex items-center gap-1.5">
                   <button onClick={onToggleHidden} onPointerDown={(e) => e.stopPropagation()}
                     title={hidden ? "Show balance" : "Hide balance"}
-                    className="w-7 h-7 rounded-md bg-white/[0.05] border border-white/[0.08] flex items-center justify-center text-zinc-400 hover:text-white transition-colors">
+                    className="w-7 h-7 rounded-md bg-white/[0.07] border border-white/[0.1] flex items-center justify-center text-blue-100/70 hover:text-white transition-colors">
                     {hidden ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                   </button>
-                  <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-white/[0.05] border border-white/[0.08]">
-                    <Lock className="w-2.5 h-2.5 text-zinc-400" />
-                    <span className="text-[9px] font-light text-zinc-400 tracking-wide">{locked ? "Locked" : "Secured"}</span>
+                  <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-white/[0.07] border border-white/[0.1]">
+                    <Lock className="w-2.5 h-2.5 text-blue-200/70" />
+                    <span className="text-[9px] font-light text-blue-100/70 tracking-wide">{locked ? "Locked" : "Secured"}</span>
                   </div>
                 </div>
               </div>
@@ -369,7 +388,7 @@ function BalanceStack({ user, activeCoins, locked, hidden, onToggleHidden }: {
                 <CoinGlyph coin={coin} size={30} />
                 <div>
                   <p className="text-[11px] font-normal tracking-wider uppercase" style={{ color: c }}>{coin}</p>
-                  <p className="text-[10px] font-light text-zinc-500 leading-none mt-0.5">{COIN_NAME[coin]}</p>
+                  <p className="text-[10px] font-light text-blue-100/50 leading-none mt-0.5">{COIN_NAME[coin]}</p>
                 </div>
               </div>
               <p className="text-[27px] font-light text-white font-mono leading-none">
@@ -383,20 +402,26 @@ function BalanceStack({ user, activeCoins, locked, hidden, onToggleHidden }: {
                 {pct && !hidden && <span className="text-[10px] font-light text-emerald-400/60">+{pct}%</span>}
               </div>
 
-              {/* Footer */}
-              <div className="mt-auto flex items-end justify-between">
-                <div className="min-w-0">
-                  <p className="text-[8px] font-normal tracking-[0.16em] text-zinc-600 uppercase mb-1">Account holder</p>
-                  <p className="text-[11px] font-light text-zinc-300 tracking-wide uppercase truncate max-w-[150px]">{user.name}</p>
+              {/* Footer — account holder + full vault number */}
+              <div className="mt-auto">
+                <div className="flex items-end justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[8px] font-normal tracking-[0.16em] text-blue-200/40 uppercase mb-1">Account holder</p>
+                    <p className="text-[11px] font-light text-zinc-100 tracking-wide uppercase truncate">{user.name}</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-[8px] font-normal tracking-[0.16em] text-blue-200/40 uppercase mb-1">Vault number</p>
+                    <p className="text-[11px] font-mono text-blue-200/90 tracking-wider">{vaultNo}</p>
+                  </div>
                 </div>
                 {n > 1 && (
-                  <div className="flex flex-col items-end gap-1.5 shrink-0">
+                  <div className="flex items-center justify-center gap-2 mt-3 pt-2.5 border-t border-white/[0.07]">
                     <div className="flex gap-1">
                       {activeCoins.map((_, di) => (
-                        <span key={di} className={`h-1 rounded-full transition-all ${di === safeIndex ? "w-3.5 bg-blue-400" : "w-1 bg-white/15"}`} />
+                        <span key={di} className={`h-1 rounded-full transition-all ${di === safeIndex ? "w-3.5 bg-blue-400" : "w-1 bg-white/20"}`} />
                       ))}
                     </div>
-                    <p className="text-[8.5px] font-light text-zinc-600 tracking-wide">↑ swipe · {safeIndex + 1}/{n}</p>
+                    <span className="text-[8.5px] font-light text-blue-100/40 tracking-wide">↑ swipe · {safeIndex + 1}/{n}</span>
                   </div>
                 )}
               </div>
