@@ -1,20 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { saveOtp, checkOtp } from "@/lib/db";
+import { cleanEnv } from "@/lib/notify";
 
 /**
  * Phone OTP endpoint — real SMS via TextBelt (https://textbelt.com).
  *
- * Set the TEXTBELT_KEY environment variable to your purchased TextBelt key.
- * TextBelt delivers worldwide; international numbers must include the country
- * code (e.g. +1, +44, +234). If the SMS can't be sent, the route falls back to
- * returning the code in `devCode` so signup never gets stuck, and includes the
- * reason in `smsNote`.
+ * Set the TEXTBELT_KEY environment variable to your purchased TextBelt key —
+ * paste the raw key only, NOT wrapped in quotes. TextBelt delivers worldwide;
+ * international numbers must include the country code. If the SMS can't be
+ * sent, the route returns the code in `devCode` so signup never gets stuck.
  */
-const TEXTBELT_KEY = process.env.TEXTBELT_KEY || "textbelt";
-
 export async function POST(req: NextRequest) {
   try {
     const { action, phone, code } = await req.json();
+
+    // Read & sanitise the key per request (strips stray quotes / whitespace).
+    const envKey = cleanEnv(process.env.TEXTBELT_KEY);
+    const TEXTBELT_KEY = envKey || "textbelt";
 
     if (!phone || typeof phone !== "string") {
       return NextResponse.json({ error: "A phone number is required" }, { status: 400 });
@@ -57,7 +59,7 @@ export async function POST(req: NextRequest) {
           smsNote = String((d as { error?: string }).error || "SMS provider unavailable");
           console.error("[otp] TextBelt did not send:", smsNote,
             "· quotaRemaining:", (d as { quotaRemaining?: number }).quotaRemaining,
-            "· keySource:", process.env.TEXTBELT_KEY
+            "· keySource:", envKey
               ? "env TEXTBELT_KEY"
               : "DEFAULT free 'textbelt' key — TEXTBELT_KEY env var not found!");
         }

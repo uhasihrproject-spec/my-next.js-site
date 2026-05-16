@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionByToken, getUserById } from "@/lib/db";
-import { sendEmail, emailLayout } from "@/lib/notify";
+import { sendEmail, emailLayout, cleanEnv } from "@/lib/notify";
 
 async function requireAdmin(req: NextRequest) {
   const token = req.cookies.get("vaultx_session")?.value;
@@ -53,20 +53,26 @@ export async function POST(req: NextRequest) {
     if (type === "sms") {
       if (!to) return NextResponse.json({ ok: false, error: "Enter a test phone number" });
 
-      const envKey = process.env.TEXTBELT_KEY;
+      const rawEnv = process.env.TEXTBELT_KEY || "";
+      const envKey = cleanEnv(rawEnv);
+      // Did the raw env value carry stray quotes / whitespace? That alone
+      // makes TextBelt see an unknown key and report "Out of quota".
+      const wasMessy = !!rawEnv.trim() && rawEnv.trim() !== envKey;
       const key = envKey || "textbelt";
       const keyHint = key.length > 10 ? `${key.slice(0, 4)}…${key.slice(-4)}` : key;
       const quota = await textbeltQuota(key);
+      const fixHint = wasMessy
+        ? " NOTE: your TEXTBELT_KEY value contained quotes or spaces — we stripped them here, " +
+          "but please remove them in Netlify (paste the raw key only, no quotes) and redeploy."
+        : "";
 
-      // If the env var never reached the function it falls back to the free
-      // shared key (1 SMS/day) — that is almost always the "out of quota" cause.
       if (!envKey) {
         return NextResponse.json({
           ok: false,
           error:
             `⚠ TEXTBELT_KEY was NOT found by the server, so it's using the FREE shared "textbelt" key ` +
             `(1 SMS/day — quota left: ${quota ?? "?"}). Fix: in Netlify → Site settings → Environment variables, ` +
-            `add TEXTBELT_KEY with your paid key, make sure its scope includes "Functions"/"Runtime", then redeploy.`,
+            `add TEXTBELT_KEY with your paid key (no quotes), scope "Functions"/"Runtime", then redeploy.`,
         });
       }
 
@@ -90,19 +96,22 @@ export async function POST(req: NextRequest) {
         if (d.success) {
           return NextResponse.json({
             ok: true,
-            message: `✅ Test SMS sent to ${e164} · using your key (${keyHint}) · credits left: ${left ?? "?"}.`,
+            message: `✅ Test SMS sent to ${e164} · using your key (${keyHint}) · credits left: ${left ?? "?"}.${fixHint}`,
           });
         }
         const isQuota = (left === 0) || /quota/i.test(String(d.error || ""));
         return NextResponse.json({
           ok: false,
           error:
-            `TextBelt rejected it: "${d.error || "unknown error"}" · using your key (${keyHint}) · ` +
+            `TextBelt rejected it: "${d.error || "unknown error"}" · key in use (${keyHint}) · ` +
             `credits on this key: ${left ?? "?"}.` +
-            (isQuota
-              ? ` This key shows 0 credits — your payment likely credited a DIFFERENT key. ` +
-                `Sign in at textbelt.com, copy the key that actually holds your credits, and set that as TEXTBELT_KEY.`
-              : ""),
+            (wasMessy
+              ? fixHint
+              : isQuota
+                ? ` This key shows 0 credits — TextBelt reports "Out of quota" both when a key is empty AND when ` +
+                  `the key is wrong/mistyped. Re-copy the exact key from textbelt.com (it must be the one your ` +
+                  `payment credited) and set it as TEXTBELT_KEY with no quotes, then redeploy.`
+                : ""),
         });
       } catch (e) {
         return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : "network error" });
