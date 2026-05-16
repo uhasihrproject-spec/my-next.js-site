@@ -140,7 +140,7 @@ export default function LoginPage() {
                 </span>
                 <span className="text-[12px] font-light text-zinc-500">Trust this device</span>
               </button>
-              <Link href="/" className="text-[12px] font-light text-blue-400 hover:underline">Forgot password?</Link>
+              <Link href="/forgot-password" className="text-[12px] font-light text-blue-400 hover:underline">Forgot password?</Link>
             </div>
 
             <button type="submit" disabled={loading}

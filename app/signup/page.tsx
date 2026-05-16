@@ -97,6 +97,16 @@ function DetailsStep({ form, setForm, agree, setAgree, consent, setConsent, dir,
       setError("Please complete every field — all details are required for verification."); return;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) { setError("Enter a valid email address"); return; }
+    // Age check — must be 18+
+    {
+      const birth = new Date(form.dob);
+      const today = new Date();
+      let age = today.getFullYear() - birth.getFullYear();
+      const m = today.getMonth() - birth.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+      if (isNaN(age)) { setError("Please enter a valid date of birth"); return; }
+      if (age < 18) { setError("You must be 18 or older to open an account. Come back when you're 18!"); return; }
+    }
     if (form.password !== form.confirm) { setError("Passwords do not match"); return; }
     if ((form.password || "").length < 8) { setError("Password must be at least 8 characters"); return; }
     if (!agree) { setError("You must accept the Terms of Service and Privacy Policy"); return; }
@@ -179,7 +189,7 @@ function DetailsStep({ form, setForm, agree, setAgree, consent, setConsent, dir,
 
       <div className="space-y-2.5">
         {[
-          { state: agree, toggle: () => setAgree(!agree), node: <>I agree to the <Link href="/" className="text-blue-400 hover:underline">Terms of Service</Link> and <Link href="/" className="text-blue-400 hover:underline">Privacy Policy</Link>.</> },
+          { state: agree, toggle: () => setAgree(!agree), node: <>I agree to the <Link href="/terms" target="_blank" className="text-blue-400 hover:underline">Terms of Service</Link> and <Link href="/privacy" target="_blank" className="text-blue-400 hover:underline">Privacy Policy</Link>.</> },
           { state: consent, toggle: () => setConsent(!consent), node: <>I consent to phone &amp; identity (KYC) verification of the details I&apos;ve provided.</> },
         ].map(({ state, toggle, node }, i) => (
           <button key={i} type="button" onClick={toggle} className="flex items-start gap-2.5 text-left w-full group">

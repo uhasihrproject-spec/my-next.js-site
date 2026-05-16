@@ -9,7 +9,7 @@ import {
   Settings, MessageSquare, LogOut, Loader2, Check, X,
   Save, Globe, Clock, Wallet, RefreshCw,
   ArrowLeft, Send, AlertTriangle, CheckCircle2,
-  ChevronRight, Lock, Unlock, ArrowRight,
+  ChevronRight, Lock, Unlock, ArrowRight, Trash2,
 } from "lucide-react";
 import type { CoinKey } from "@/lib/db";
 
@@ -106,7 +106,7 @@ function Backdrop({ onClick }: { onClick: () => void }) {
 ───────────────────────────────────────────────── */
 function UserDrawer({
   user, edit, onClose, onChangeBalance, onChangeEarnings,
-  onChangeDate, onChangeLock, onSave, saving,
+  onChangeDate, onChangeLock, onSave, onDelete, saving, deleting,
 }: {
   user: UserData;
   edit: { balance: Partial<Record<CoinKey, string>>; earnings: Partial<Record<CoinKey, string>>; withdrawalUnlockDate: string; customLock: boolean };
@@ -116,9 +116,12 @@ function UserDrawer({
   onChangeDate: (val: string) => void;
   onChangeLock: (val: boolean) => void;
   onSave: () => void;
+  onDelete: () => void;
   saving: boolean;
+  deleting: boolean;
 }) {
   const [step, setStep] = useState<1 | 2>(1);
+  const [confirmDel, setConfirmDel] = useState(false);
 
   return (
     <>
@@ -235,6 +238,37 @@ function UserDrawer({
                       <div className="w-10 h-5 bg-white/[0.07] rounded-full peer peer-checked:bg-red-600/60 transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-5" />
                     </label>
                   </div>
+                </div>
+
+                {/* Danger zone — delete user */}
+                <div className="bg-red-500/[0.04] border border-red-500/15 rounded-xl p-5 mt-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Trash2 className="w-4 h-4 text-red-400" />
+                    <p className="text-[13px] font-normal text-red-300">Delete account</p>
+                  </div>
+                  <p className="text-[11px] font-light text-zinc-600 mb-3 leading-relaxed">
+                    Permanently removes {user.name} and all of their data. This cannot be undone.
+                  </p>
+                  <button
+                    onClick={() => { if (confirmDel) onDelete(); else setConfirmDel(true); }}
+                    disabled={deleting}
+                    className={`w-full py-2.5 rounded-xl text-[12px] font-normal transition-colors flex items-center justify-center gap-2 ${
+                      confirmDel
+                        ? "bg-red-600 hover:bg-red-500 text-white"
+                        : "bg-red-500/10 border border-red-500/25 text-red-400 hover:bg-red-500/15"
+                    }`}
+                  >
+                    {deleting
+                      ? <Loader2 className="w-4 h-4 animate-spin" />
+                      : <Trash2 className="w-3.5 h-3.5" />}
+                    {deleting ? "Deleting…" : confirmDel ? "Tap again to permanently delete" : "Delete this user"}
+                  </button>
+                  {confirmDel && !deleting && (
+                    <button onClick={() => setConfirmDel(false)}
+                      className="w-full mt-2 py-1.5 text-[11px] font-light text-zinc-600 hover:text-zinc-400 transition-colors">
+                      Cancel
+                    </button>
+                  )}
                 </div>
               </motion.div>
             )}
@@ -410,6 +444,7 @@ export default function AdminPage() {
   const [sendingReply, setSendingReply] = useState(false);
   const [totalUnread, setTotalUnread] = useState(0);
   const [savingUser, setSavingUser] = useState<string | null>(null);
+  const [deletingUser, setDeletingUser] = useState<string | null>(null);
   const [savingSettings, setSavingSettings] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
   const [depositFilter, setDepositFilter] = useState<"all" | "pending">("all");
@@ -505,6 +540,19 @@ export default function AdminPage() {
       else showToast("Failed to save", "error");
     } catch { showToast("Network error", "error"); }
     finally { setSavingUser(null); }
+  }
+
+  async function deleteUserAction(userId: string) {
+    setDeletingUser(userId);
+    try {
+      const res = await fetch(`/api/admin/users/${userId}`, { method: "DELETE" });
+      if (res.ok) { setUserDrawer(null); await fetchAll(); showToast("User deleted"); }
+      else {
+        const d = await res.json().catch(() => ({}));
+        showToast(d.error || "Failed to delete user", "error");
+      }
+    } catch { showToast("Network error", "error"); }
+    finally { setDeletingUser(null); }
   }
 
   async function handleDepositAction(dep: DepositRow, action: string, note: string) {
@@ -1306,7 +1354,9 @@ export default function AdminPage() {
             onChangeDate={(val) => setUserEdits((p) => ({ ...p, [userDrawer]: { ...p[userDrawer], withdrawalUnlockDate: val } }))}
             onChangeLock={(val) => setUserEdits((p) => ({ ...p, [userDrawer]: { ...p[userDrawer], customLock: val } }))}
             onSave={() => saveUser(userDrawer)}
+            onDelete={() => deleteUserAction(userDrawer)}
             saving={savingUser === userDrawer}
+            deleting={deletingUser === userDrawer}
           />
         )}
       </AnimatePresence>

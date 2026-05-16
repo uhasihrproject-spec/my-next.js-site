@@ -222,6 +222,14 @@ export async function createUser(
   return user;
 }
 
+export async function deleteUser(id: string): Promise<void> {
+  const users = await getUsers();
+  await saveUsers(users.filter((u) => u.id !== id));
+  // Also drop any sessions for that user.
+  const sessions = await getSessions();
+  await writeData("sessions", sessions.filter((s) => s.userId !== id));
+}
+
 // ─── Settings ────────────────────────────────────────────────────────────────
 
 export async function getSettings(): Promise<Settings> {

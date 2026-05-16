@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
@@ -32,7 +32,7 @@ const COIN_SYMBOL: Record<CoinKey, string> = {
 
 type Tab = "portfolio" | "markets" | "news" | "activity";
 type DepositStep = "coin" | "address" | "amount" | "hash" | "confirming" | "confirmed";
-type WithdrawStep = "coin" | "amount" | "address" | "confirming" | "confirmed";
+type WithdrawStep = "coin" | "amount" | "address" | "verify" | "confirming" | "confirmed";
 
 /* ─── Types ─── */
 interface UserData {
@@ -235,32 +235,26 @@ function Sparkline({ data, positive, w = 64, h = 24 }: { data: number[]; positiv
 }
 
 /* ─── Stacked balance card ─── */
-function BalanceStack({ user, totalEarnings, activeCoins, locked, hidden, onToggleHidden }: {
-  user: UserData; totalEarnings: number; activeCoins: CoinKey[]; locked: boolean;
+function BalanceStack({ user, activeCoins, locked, hidden, onToggleHidden }: {
+  user: UserData; activeCoins: CoinKey[]; locked: boolean;
   hidden: boolean; onToggleHidden: () => void;
 }) {
-  const vaultNo = (user.id.replace(/[^a-zA-Z0-9]/g, "").toUpperCase() + "00000000").slice(-8);
-  return (
-    <div className="relative mb-7">
-      {/* Stacked cards behind */}
-      <div className="absolute left-1/2 -translate-x-1/2 -bottom-4 w-[86%] h-full rounded-2xl bg-[#141417] border border-white/[0.04]" />
-      <div className="absolute left-1/2 -translate-x-1/2 -bottom-2 w-[93%] h-full rounded-2xl bg-[#19191e] border border-white/[0.06]" />
+  const n = activeCoins.length;
+  const [index, setIndex] = useState(0);
+  useEffect(() => { if (index >= n) setIndex(0); }, [n, index]);
+  const safeIndex = index < n ? index : 0;
 
-      {/* Front card */}
-      <motion.div
-        initial={{ opacity: 0, y: 16, scale: 0.97 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ type: "spring", damping: 22, stiffness: 190 }}
-        whileHover={{ y: -3 }}
-        className="relative rounded-2xl p-5 overflow-hidden border border-white/[0.09]"
-        style={{ background: "linear-gradient(140deg, #1c2233 0%, #13141b 52%, #0e0f14 100%)" }}
-      >
-        <div className="absolute -top-14 -right-10 w-48 h-48 rounded-full pointer-events-none"
-          style={{ background: "radial-gradient(circle, rgba(59,130,246,0.16) 0%, transparent 70%)" }} />
-        <div className="absolute -bottom-16 -left-12 w-44 h-44 rounded-full pointer-events-none"
-          style={{ background: "radial-gradient(circle, rgba(139,92,246,0.1) 0%, transparent 70%)" }} />
-
-        <div className="relative z-10">
+  /* ── No assets — single default card ── */
+  if (n === 0) {
+    return (
+      <div className="relative mb-7">
+        <div className="absolute left-1/2 -translate-x-1/2 -bottom-3 w-[90%] h-full rounded-2xl bg-[#15151a] border border-white/[0.05]" />
+        <motion.div
+          initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+          transition={{ type: "spring", damping: 22, stiffness: 190 }}
+          className="relative rounded-2xl p-5 overflow-hidden border border-white/[0.09]"
+          style={{ background: "linear-gradient(140deg, #1c2233 0%, #13141b 52%, #0e0f14 100%)" }}
+        >
           <div className="flex items-center justify-between mb-7">
             <div className="flex items-center gap-2">
               <div className="w-5 h-5 rounded-md bg-blue-500 flex items-center justify-center">
@@ -268,41 +262,117 @@ function BalanceStack({ user, totalEarnings, activeCoins, locked, hidden, onTogg
               </div>
               <span className="text-[12px] font-normal text-white tracking-wide">VaultX</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <button onClick={onToggleHidden} title={hidden ? "Show balance" : "Hide balance"}
-                className="w-7 h-7 rounded-md bg-white/[0.05] border border-white/[0.08] flex items-center justify-center text-zinc-400 hover:text-white transition-colors">
-                {hidden ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-              </button>
-              <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-white/[0.05] border border-white/[0.08]">
-                <Lock className="w-2.5 h-2.5 text-zinc-400" />
-                <span className="text-[9px] font-light text-zinc-400 tracking-wide">{locked ? "Secured · Locked" : "Secured"}</span>
+            <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-white/[0.05] border border-white/[0.08]">
+              <Lock className="w-2.5 h-2.5 text-zinc-400" />
+              <span className="text-[9px] font-light text-zinc-400 tracking-wide">Secured</span>
+            </div>
+          </div>
+          <p className="text-[10px] font-normal tracking-[0.18em] text-blue-300/50 uppercase mb-1.5">Portfolio</p>
+          <p className="text-[28px] font-light text-white font-mono leading-none mb-2">0.00000</p>
+          <p className="text-[11px] font-light text-zinc-500 mb-7">No assets yet — make your first deposit to begin.</p>
+          <div>
+            <p className="text-[8px] font-normal tracking-[0.16em] text-zinc-600 uppercase mb-1">Account holder</p>
+            <p className="text-[12px] font-light text-zinc-300 tracking-wide uppercase truncate max-w-[200px]">{user.name}</p>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
+  /* ── Coin cards — swipe up to cycle ── */
+  const cards = activeCoins
+    .map((coin, i) => ({ coin, pos: (i - safeIndex + n) % n }))
+    .filter((c) => c.pos <= 2)
+    .sort((a, b) => b.pos - a.pos);
+
+  return (
+    <div className="relative mb-7" style={{ height: 224 }}>
+      {cards.map(({ coin, pos }) => {
+        const isFront = pos === 0;
+        const bal = (user.balance[coin] || 0) + (user.earnings[coin] || 0);
+        const earn = user.earnings[coin] || 0;
+        const base = user.balance[coin] || 0;
+        const pct = base > 0 ? ((earn / base) * 100).toFixed(2) : null;
+        const c = COIN_COLOR[coin];
+        return (
+          <motion.div
+            key={coin}
+            drag={isFront && n > 1 ? "y" : false}
+            dragConstraints={{ top: 0, bottom: 0 }}
+            dragElastic={{ top: 0.6, bottom: 0.1 }}
+            onDragEnd={(_, info) => { if (info.offset.y < -55) setIndex((p) => (p + 1) % n); }}
+            animate={{ y: pos * 13, scale: 1 - pos * 0.05, opacity: pos === 0 ? 1 : pos === 1 ? 0.65 : 0.35 }}
+            transition={{ type: "spring", damping: 26, stiffness: 240 }}
+            style={{ zIndex: 10 - pos, background: `linear-gradient(140deg, ${c}26 0%, #13141b 55%, #0e0f14 100%)` }}
+            className={`absolute inset-x-0 top-0 h-[196px] rounded-2xl p-5 overflow-hidden border border-white/[0.09] ${
+              isFront && n > 1 ? "cursor-grab active:cursor-grabbing" : ""
+            }`}
+          >
+            <div className="absolute -top-14 -right-10 w-44 h-44 rounded-full pointer-events-none"
+              style={{ background: `radial-gradient(circle, ${c}30 0%, transparent 70%)` }} />
+
+            <div className="relative z-10 h-full flex flex-col">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 rounded-md bg-blue-500 flex items-center justify-center">
+                    <TrendingUp className="w-2.5 h-2.5 text-white" />
+                  </div>
+                  <span className="text-[12px] font-normal text-white tracking-wide">VaultX</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button onClick={onToggleHidden} onPointerDown={(e) => e.stopPropagation()}
+                    title={hidden ? "Show balance" : "Hide balance"}
+                    className="w-7 h-7 rounded-md bg-white/[0.05] border border-white/[0.08] flex items-center justify-center text-zinc-400 hover:text-white transition-colors">
+                    {hidden ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  </button>
+                  <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-white/[0.05] border border-white/[0.08]">
+                    <Lock className="w-2.5 h-2.5 text-zinc-400" />
+                    <span className="text-[9px] font-light text-zinc-400 tracking-wide">{locked ? "Locked" : "Secured"}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Coin + balance */}
+              <div className="flex items-center gap-2.5 mb-2.5">
+                <CoinGlyph coin={coin} size={30} />
+                <div>
+                  <p className="text-[11px] font-normal tracking-wider uppercase" style={{ color: c }}>{coin}</p>
+                  <p className="text-[10px] font-light text-zinc-500 leading-none mt-0.5">{COIN_NAME[coin]}</p>
+                </div>
+              </div>
+              <p className="text-[27px] font-light text-white font-mono leading-none">
+                {hidden ? "••••••" : bal.toFixed(6)}
+              </p>
+              <div className="flex items-center gap-2 mt-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                <p className="text-[11px] font-light text-emerald-400 font-mono">
+                  {hidden ? "••••" : `+${earn.toFixed(6)}`}
+                </p>
+                {pct && !hidden && <span className="text-[10px] font-light text-emerald-400/60">+{pct}%</span>}
+              </div>
+
+              {/* Footer */}
+              <div className="mt-auto flex items-end justify-between">
+                <div className="min-w-0">
+                  <p className="text-[8px] font-normal tracking-[0.16em] text-zinc-600 uppercase mb-1">Account holder</p>
+                  <p className="text-[11px] font-light text-zinc-300 tracking-wide uppercase truncate max-w-[150px]">{user.name}</p>
+                </div>
+                {n > 1 && (
+                  <div className="flex flex-col items-end gap-1.5 shrink-0">
+                    <div className="flex gap-1">
+                      {activeCoins.map((_, di) => (
+                        <span key={di} className={`h-1 rounded-full transition-all ${di === safeIndex ? "w-3.5 bg-blue-400" : "w-1 bg-white/15"}`} />
+                      ))}
+                    </div>
+                    <p className="text-[8.5px] font-light text-zinc-600 tracking-wide">↑ swipe · {safeIndex + 1}/{n}</p>
+                  </div>
+                )}
               </div>
             </div>
-          </div>
-
-          <p className="text-[10px] font-normal tracking-[0.18em] text-blue-300/50 uppercase mb-1.5">Total earned</p>
-          <p className="text-[32px] font-light text-white font-mono leading-none mb-1.5">
-            {hidden ? "••••••" : `+${totalEarnings.toFixed(5)}`}
-          </p>
-          <div className="flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-            <p className="text-[11px] font-light text-zinc-500">
-              {activeCoins.length} active asset{activeCoins.length !== 1 ? "s" : ""} · accruing yield
-            </p>
-          </div>
-
-          <div className="flex items-end justify-between mt-7">
-            <div>
-              <p className="text-[8px] font-normal tracking-[0.16em] text-zinc-600 uppercase mb-1">Account holder</p>
-              <p className="text-[12px] font-light text-zinc-300 tracking-wide uppercase truncate max-w-[160px]">{user.name}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-[8px] font-normal tracking-[0.16em] text-zinc-600 uppercase mb-1">Vault no.</p>
-              <p className="text-[12px] font-light text-zinc-400 font-mono tracking-[0.15em]">•• {vaultNo.slice(-4)}</p>
-            </div>
-          </div>
-        </div>
-      </motion.div>
+          </motion.div>
+        );
+      })}
     </div>
   );
 }
@@ -460,17 +530,17 @@ function DepositOverlay({
                 className="px-5 pt-5 pb-8">
                 <p className="text-[13px] font-light text-zinc-500 mb-8">Enter the exact amount you sent on-chain.</p>
 
-                <div className="flex items-end gap-3 mb-2">
+                <div className="flex flex-col items-center mb-8">
                   <CoinGlyph coin={coin} size={44} />
                   <input
                     type="number" step="any" min="0" autoFocus
                     value={amount} onChange={(e) => setAmount(e.target.value)}
                     placeholder="0.00"
-                    className="flex-1 text-[40px] font-light text-white placeholder-zinc-800 focus:outline-none bg-transparent [appearance:textfield] leading-none"
+                    className="mt-4 w-full text-[44px] font-light text-white placeholder-zinc-800 focus:outline-none bg-transparent [appearance:textfield] leading-none text-center"
                   />
-                  <span className="text-[14px] font-light text-zinc-600 pb-1.5 shrink-0">{coin}</span>
+                  <span className="text-[12px] font-light text-zinc-600 mt-1 uppercase tracking-wider">{coin}</span>
+                  <div className="h-px bg-white/[0.06] w-full mt-5" />
                 </div>
-                <div className="h-px bg-white/[0.06] mb-8" />
 
                 <button
                   onClick={() => { if (amount && parseFloat(amount) > 0) go("hash"); }}
@@ -629,7 +699,7 @@ function WithdrawOverlay({
 
   const stepTitle: Record<WithdrawStep, string> = {
     coin: "Select asset", amount: "Withdrawal amount",
-    address: "Destination wallet", confirming: "", confirmed: "",
+    address: "Destination wallet", verify: "", confirming: "", confirmed: "",
   };
 
   return (
@@ -649,7 +719,7 @@ function WithdrawOverlay({
           <div className="w-9 h-1 rounded-full bg-white/[0.1]" />
         </div>
 
-        {step !== "confirming" && step !== "confirmed" && (
+        {step !== "confirming" && step !== "confirmed" && step !== "verify" && (
           <div className="flex items-center gap-3 px-5 py-4 shrink-0 border-b border-white/[0.05]">
             <button
               onClick={() => {
@@ -728,16 +798,16 @@ function WithdrawOverlay({
                   </button>
                 </div>
 
-                <div className="flex items-end gap-3 mb-2">
+                <div className="flex flex-col items-center mb-8">
                   <input
                     type="number" step="any" min="0" autoFocus
                     value={amount} onChange={(e) => setAmount(e.target.value)}
                     placeholder="0.00"
-                    className="flex-1 text-[40px] font-light text-white placeholder-zinc-800 focus:outline-none bg-transparent [appearance:textfield] leading-none"
+                    className="w-full text-[44px] font-light text-white placeholder-zinc-800 focus:outline-none bg-transparent [appearance:textfield] leading-none text-center"
                   />
-                  <span className="text-[14px] font-light text-zinc-600 pb-1.5 shrink-0">{coin}</span>
+                  <span className="text-[12px] font-light text-zinc-600 mt-1 uppercase tracking-wider">{coin}</span>
+                  <div className="h-px bg-white/[0.06] w-full mt-5" />
                 </div>
-                <div className="h-px bg-white/[0.06] mb-8" />
 
                 <button
                   onClick={() => { if (amount && parseFloat(amount) > 0 && parseFloat(amount) <= available) go("address"); }}
@@ -802,10 +872,22 @@ function WithdrawOverlay({
                   </div>
                 </div>
 
-                <button onClick={submit} disabled={!addr.trim()}
+                <button onClick={() => { if (addr.trim()) go("verify"); }} disabled={!addr.trim()}
                   className="w-full py-3.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-30 text-white text-[13px] font-normal rounded-xl transition-all active:scale-[0.98] flex items-center justify-center gap-2">
                   Submit withdrawal request <ArrowRight className="w-4 h-4" />
                 </button>
+              </motion.div>
+            )}
+
+            {/* ── Verify — PIN / biometric ── */}
+            {step === "verify" && (
+              <motion.div key="verify" variants={variants} initial="initial" animate="animate" exit="exit" custom={dir}>
+                <VerifyPin
+                  user={user}
+                  title={`Authorize this withdrawal of ${amount} ${coin} with your PIN or biometrics.`}
+                  onVerified={submit}
+                  onCancel={() => go("address", -1)}
+                />
               </motion.div>
             )}
 
@@ -1107,19 +1189,17 @@ function ActivityContent({
                         <CopyChip value={w.address} />
                       </div>
                       {w.note && <p className="text-[11px] font-light text-zinc-500 mt-1 italic">&ldquo;{w.note}&rdquo;</p>}
-                      <div className="flex items-center justify-between mt-1.5">
-                        <p className="text-[10px] font-light text-zinc-700">{new Date(w.requestDate).toLocaleString()}</p>
-                        <button
-                          onClick={() => onOpenReceipt({
-                            ref: "WX-" + w.id.replace(/[^a-zA-Z0-9]/g, "").slice(0, 6).toUpperCase(),
-                            dateLabel: new Date(w.requestDate).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" }),
-                            coin: w.coin, amount: w.amount, destination: w.address, status: w.status,
-                          })}
-                          className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-white/[0.04] hover:bg-white/[0.08] text-[10px] font-normal text-zinc-400 hover:text-white transition-colors shrink-0"
-                        >
-                          <ReceiptIcon className="w-3 h-3" /> Receipt
-                        </button>
-                      </div>
+                      <p className="text-[10px] font-light text-zinc-700 mt-1.5">{new Date(w.requestDate).toLocaleString()}</p>
+                      <button
+                        onClick={() => onOpenReceipt({
+                          ref: "WX-" + w.id.replace(/[^a-zA-Z0-9]/g, "").slice(0, 6).toUpperCase(),
+                          dateLabel: new Date(w.requestDate).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" }),
+                          coin: w.coin, amount: w.amount, destination: w.address, status: w.status,
+                        })}
+                        className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.09] border border-white/[0.08] text-[12px] font-normal text-zinc-300 hover:text-white transition-all active:scale-[0.99]"
+                      >
+                        <ReceiptIcon className="w-4 h-4" /> View receipt
+                      </button>
                     </div>
                   </motion.div>
                 ))}
@@ -1345,12 +1425,72 @@ function SettingRow({ Icon, label, desc, control }: {
   );
 }
 
-function SettingsOverlay({ user, onClose, onLogout }: { user: UserData; onClose: () => void; onLogout: () => void }) {
-  const [twoFa, setTwoFa] = useState(true);
-  const [loginAlerts, setLoginAlerts] = useState(true);
+function SettingsOverlay({ user, onClose, onLogout, balanceHidden, onToggleBalance }: {
+  user: UserData; onClose: () => void; onLogout: () => void;
+  balanceHidden: boolean; onToggleBalance: () => void;
+}) {
   const [biometric, setBiometric] = useState(false);
+  const [bioBusy, setBioBusy] = useState(false);
   const [emailUpdates, setEmailUpdates] = useState(true);
   const [priceAlerts, setPriceAlerts] = useState(false);
+  const [loginAlerts, setLoginAlerts] = useState(true);
+
+  const [pinOpen, setPinOpen] = useState(false);
+  const [newPin, setNewPin] = useState("");
+  const [confirmPin, setConfirmPin] = useState("");
+  const [pinMsg, setPinMsg] = useState("");
+  const [pinOk, setPinOk] = useState(false);
+  const [pinBusy, setPinBusy] = useState(false);
+
+  useEffect(() => {
+    try {
+      setBiometric(!!localStorage.getItem("vaultx_bio_" + user.id));
+      setEmailUpdates(localStorage.getItem("vaultx_pref_email") !== "0");
+      setPriceAlerts(localStorage.getItem("vaultx_pref_price") === "1");
+      setLoginAlerts(localStorage.getItem("vaultx_pref_login") !== "0");
+    } catch { /* ignore */ }
+  }, [user.id]);
+
+  function persist(key: string, set: (v: boolean) => void) {
+    return (v: boolean) => {
+      set(v);
+      try { localStorage.setItem(key, v ? "1" : "0"); } catch { /* ignore */ }
+    };
+  }
+
+  async function toggleBiometric(on: boolean) {
+    if (bioBusy) return;
+    if (on) {
+      setBioBusy(true);
+      const ok = await enrollBiometric(user.id, user.name);
+      setBioBusy(false);
+      setBiometric(ok);
+    } else {
+      try { localStorage.removeItem("vaultx_bio_" + user.id); } catch { /* ignore */ }
+      setBiometric(false);
+    }
+  }
+
+  async function savePin() {
+    setPinOk(false);
+    if (!/^\d{6}$/.test(newPin)) { setPinMsg("PIN must be exactly 6 digits"); return; }
+    if (newPin !== confirmPin) { setPinMsg("The two PINs don't match"); return; }
+    setPinBusy(true); setPinMsg("");
+    try {
+      const r = await fetch("/api/auth/pin", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "set", pin: newPin }),
+      });
+      if (r.ok) {
+        setPinOk(true); setPinMsg("PIN updated");
+        setNewPin(""); setConfirmPin("");
+        setTimeout(() => { setPinOpen(false); setPinMsg(""); setPinOk(false); }, 1300);
+      } else setPinMsg("Couldn't update PIN");
+    } catch { setPinMsg("Network error"); }
+    finally { setPinBusy(false); }
+  }
+
+  const pinInputCls = "w-full px-3.5 py-2.5 bg-[#0c0c0d] border border-white/[0.08] rounded-lg text-white text-[14px] tracking-[0.3em] font-mono placeholder-zinc-700 focus:outline-none focus:border-blue-500/40 transition-colors";
 
   return (
     <>
@@ -1401,22 +1541,62 @@ function SettingsOverlay({ user, onClose, onLogout }: { user: UserData; onClose:
               control={<span className="text-[11px] font-light text-emerald-400">Level 2</span>} />
           </div>
 
-          <p className="text-[10px] font-normal tracking-[0.16em] text-zinc-600 uppercase mt-5 mb-1">Security</p>
+          <p className="text-[10px] font-normal tracking-[0.16em] text-zinc-600 uppercase mt-5 mb-1">Privacy &amp; security</p>
           <div className="divide-y divide-white/[0.04]">
-            <SettingRow Icon={KeyRound} label="Two-factor authentication" desc="Required at every sign-in"
-              control={<SettingToggle on={twoFa} set={setTwoFa} />} />
-            <SettingRow Icon={Bell} label="Login alerts" desc="Notify on new device"
-              control={<SettingToggle on={loginAlerts} set={setLoginAlerts} />} />
-            <SettingRow Icon={Fingerprint} label="Biometric unlock" desc="Face or fingerprint"
-              control={<SettingToggle on={biometric} set={setBiometric} />} />
+            <SettingRow Icon={balanceHidden ? EyeOff : Eye} label="Hide balances" desc="Mask amounts across the dashboard"
+              control={<SettingToggle on={balanceHidden} set={() => onToggleBalance()} />} />
+            <SettingRow Icon={Fingerprint}
+              label="Biometric unlock"
+              desc={biometric ? "Face / fingerprint enabled" : "Unlock with Face ID or fingerprint"}
+              control={bioBusy
+                ? <Loader2 className="w-4 h-4 animate-spin text-zinc-500" />
+                : <SettingToggle on={biometric} set={toggleBiometric} />} />
           </div>
+
+          {/* Change PIN */}
+          <button onClick={() => { setPinOpen((o) => !o); setPinMsg(""); setPinOk(false); }}
+            className="w-full flex items-center gap-3 py-3.5 mt-1">
+            <div className="w-8 h-8 rounded-lg bg-white/[0.04] border border-white/[0.06] flex items-center justify-center shrink-0">
+              <KeyRound className="w-3.5 h-3.5 text-zinc-400" />
+            </div>
+            <div className="flex-1 min-w-0 text-left">
+              <p className="text-[13px] font-normal text-zinc-200">Change security PIN</p>
+              <p className="text-[11px] font-light text-zinc-600 mt-0.5">Your 6-digit dashboard PIN</p>
+            </div>
+            <span className="text-[11px] font-light text-blue-400">{pinOpen ? "Close" : "Change"}</span>
+          </button>
+          <AnimatePresence>
+            {pinOpen && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="bg-[#0c0c0d] border border-white/[0.06] rounded-xl p-4 mb-1 space-y-2.5">
+                  <input type="password" inputMode="numeric" maxLength={6} placeholder="New 6-digit PIN"
+                    value={newPin} onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ""))} className={pinInputCls} />
+                  <input type="password" inputMode="numeric" maxLength={6} placeholder="Confirm new PIN"
+                    value={confirmPin} onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ""))} className={pinInputCls} />
+                  {pinMsg && (
+                    <p className={`text-[11px] font-light ${pinOk ? "text-emerald-400" : "text-red-400"}`}>{pinMsg}</p>
+                  )}
+                  <button onClick={savePin} disabled={pinBusy}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-[12px] font-normal rounded-lg transition-colors">
+                    {pinBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <KeyRound className="w-3.5 h-3.5" />}
+                    Update PIN
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <p className="text-[10px] font-normal tracking-[0.16em] text-zinc-600 uppercase mt-5 mb-1">Notifications</p>
           <div className="divide-y divide-white/[0.04]">
             <SettingRow Icon={Mail} label="Email updates" desc="Deposits, withdrawals & earnings"
-              control={<SettingToggle on={emailUpdates} set={setEmailUpdates} />} />
+              control={<SettingToggle on={emailUpdates} set={persist("vaultx_pref_email", setEmailUpdates)} />} />
             <SettingRow Icon={TrendingUp} label="Price alerts" desc="Market movement notifications"
-              control={<SettingToggle on={priceAlerts} set={setPriceAlerts} />} />
+              control={<SettingToggle on={priceAlerts} set={persist("vaultx_pref_price", setPriceAlerts)} />} />
+            <SettingRow Icon={Bell} label="Login alerts" desc="Notify on a new device sign-in"
+              control={<SettingToggle on={loginAlerts} set={persist("vaultx_pref_login", setLoginAlerts)} />} />
           </div>
 
           <button onClick={onLogout}
@@ -1533,6 +1713,104 @@ function Keypad({ onDigit, onBack, onBio, busy }: {
   );
 }
 
+/* ─── PIN / biometric verification (used to authorize withdrawals) ─── */
+function VerifyPin({ user, title, onVerified, onCancel }: {
+  user: UserData; title: string; onVerified: () => void; onCancel: () => void;
+}) {
+  const [pin, setPin] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [shake, setShake] = useState(false);
+  const bioEnrolled = typeof window !== "undefined" && !!localStorage.getItem("vaultx_bio_" + user.id);
+
+  const verify = useCallback(async (value: string) => {
+    setBusy(true);
+    try {
+      const r = await fetch("/api/auth/pin", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "verify", pin: value }),
+      });
+      setBusy(false);
+      if (!r.ok) {
+        setError("Incorrect PIN");
+        setShake(true); setTimeout(() => setShake(false), 450);
+        setTimeout(() => setPin(""), 500);
+        return;
+      }
+      onVerified();
+    } catch {
+      setBusy(false);
+      setError("Network error"); setTimeout(() => setPin(""), 500);
+    }
+  }, [onVerified]);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (/^[0-9]$/.test(e.key)) {
+        e.preventDefault();
+        if (busy || pin.length >= 6) return;
+        const next = pin + e.key;
+        setError(""); setPin(next);
+        if (next.length === 6) verify(next);
+      } else if (e.key === "Backspace") {
+        e.preventDefault();
+        setPin((p) => p.slice(0, -1)); setError("");
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [pin, busy, verify]);
+
+  function press(d: string) {
+    if (busy || pin.length >= 6) return;
+    const next = pin + d;
+    setError(""); setPin(next);
+    if (next.length === 6) verify(next);
+  }
+
+  async function bioVerify() {
+    setBusy(true); setError("");
+    const ok = await verifyBiometric(user.id);
+    setBusy(false);
+    if (ok) onVerified();
+    else { setError("Biometric failed — use your PIN"); setShake(true); setTimeout(() => setShake(false), 450); }
+  }
+
+  return (
+    <div className="flex flex-col items-center px-5 pt-8 pb-9">
+      <motion.div
+        initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+        transition={{ type: "spring", damping: 16, stiffness: 220 }}
+        className="w-12 h-12 rounded-2xl bg-blue-500/[0.1] border border-blue-500/20 flex items-center justify-center mb-4"
+      >
+        <ShieldCheck className="w-5 h-5 text-blue-400" />
+      </motion.div>
+      <p className="text-[17px] font-light text-white mb-1">Confirm it&apos;s you</p>
+      <p className="text-[12px] font-light text-zinc-500 mb-6 text-center max-w-[260px]">{title}</p>
+
+      <motion.div animate={shake ? { x: [0, -8, 8, -6, 6, 0] } : {}} transition={{ duration: 0.4 }}>
+        <PinDots count={pin.length} error={!!error} />
+      </motion.div>
+      <div className="h-5 mt-3 mb-5">
+        {error && <p className="text-[11px] font-light text-red-400">{error}</p>}
+        {busy && !error && (
+          <p className="text-[11px] font-light text-zinc-600 flex items-center gap-1.5">
+            <Loader2 className="w-3 h-3 animate-spin" /> Verifying…
+          </p>
+        )}
+      </div>
+
+      <Keypad onDigit={press} onBack={() => setPin((p) => p.slice(0, -1))}
+        onBio={bioEnrolled ? bioVerify : undefined} busy={busy} />
+
+      <button onClick={onCancel}
+        className="mt-6 text-[12px] font-light text-zinc-600 hover:text-zinc-300 transition-colors">
+        Cancel
+      </button>
+    </div>
+  );
+}
+
 function GateScreen({ user, hasPin, onUnlock }: {
   user: UserData; hasPin: boolean; onUnlock: () => void;
 }) {
@@ -1606,6 +1884,27 @@ function GateScreen({ user, hasPin, onUnlock }: {
     setPin(next);
     if (next.length === 6) complete(next);
   }
+
+  // Let the user type the PIN on a physical keyboard, not just the on-screen pad.
+  useEffect(() => {
+    if (phase === "create-bio") return;
+    function onKey(e: KeyboardEvent) {
+      if (/^[0-9]$/.test(e.key)) {
+        e.preventDefault();
+        if (busy || pin.length >= 6) return;
+        const next = pin + e.key;
+        setError("");
+        setPin(next);
+        if (next.length === 6) complete(next);
+      } else if (e.key === "Backspace") {
+        e.preventDefault();
+        setPin((p) => p.slice(0, -1));
+        setError("");
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [phase, pin, busy, complete]);
 
   async function bioUnlock() {
     setBusy(true); setError("");
@@ -2143,7 +2442,6 @@ export default function Dashboard() {
   const [locked, setLocked] = useState(true);
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
   const [balanceHidden, setBalanceHidden] = useState(false);
-  const initialised = useRef(false);
 
   useEffect(() => {
     try { setBalanceHidden(localStorage.getItem("vaultx_hide_balance") === "1"); } catch { /* ignore */ }
@@ -2169,16 +2467,15 @@ export default function Dashboard() {
       const data = await cfg.json();
       setSettings(data.settings);
     }
-    if (!initialised.current) {
-      initialised.current = true;
-      let unlocked = false;
-      try { unlocked = sessionStorage.getItem("vaultx_unlocked") === u.id; } catch { /* ignore */ }
-      setLocked(!unlocked);
-    }
     setLoading(false);
   }, [router]);
 
-  useEffect(() => { load(); }, [load]);
+  // Initial load + live refresh so admin balance changes show up automatically.
+  useEffect(() => {
+    load();
+    const id = setInterval(load, 25000);
+    return () => clearInterval(id);
+  }, [load]);
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -2341,7 +2638,7 @@ export default function Dashboard() {
 
           {/* Stacked balance card — directly under the name */}
           {tab === "portfolio" && user && (
-            <BalanceStack user={user} totalEarnings={totalEarnings} activeCoins={activeCoins} locked={!!lockStatus?.locked}
+            <BalanceStack user={user} activeCoins={activeCoins} locked={!!lockStatus?.locked}
               hidden={balanceHidden} onToggleHidden={toggleBalanceHidden} />
           )}
 
@@ -2418,7 +2715,8 @@ export default function Dashboard() {
       <AnimatePresence>
         {settingsOpen && user && (
           <SettingsOverlay key="settings" user={user}
-            onClose={() => setSettingsOpen(false)} onLogout={logout} />
+            onClose={() => setSettingsOpen(false)} onLogout={logout}
+            balanceHidden={balanceHidden} onToggleBalance={toggleBalanceHidden} />
         )}
       </AnimatePresence>
       <AnimatePresence>

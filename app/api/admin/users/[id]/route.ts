@@ -3,6 +3,7 @@ import {
   getSessionByToken,
   getUserById,
   updateUser,
+  deleteUser,
   sanitizeUser,
   type CoinKey,
 } from "@/lib/db";
@@ -83,4 +84,21 @@ export async function PUT(
   } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
+}
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  if (!(await requireAdmin(req))) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  const { id } = await params;
+  const user = await getUserById(id);
+  if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
+  if (user.role === "admin") {
+    return NextResponse.json({ error: "Admin accounts cannot be deleted" }, { status: 400 });
+  }
+  await deleteUser(id);
+  return NextResponse.json({ success: true });
 }
