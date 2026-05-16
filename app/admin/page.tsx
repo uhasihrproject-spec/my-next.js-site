@@ -428,6 +428,124 @@ function ActionSheet({
   );
 }
 
+/* ─── Admin PIN gate ─── */
+function AdminGate({ hasPin, onUnlock }: { hasPin: boolean; onUnlock: () => void }) {
+  const [phase, setPhase] = useState<"enter" | "confirm" | "unlock">(hasPin ? "unlock" : "enter");
+  const [pin, setPin] = useState("");
+  const [first, setFirst] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [shake, setShake] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { inputRef.current?.focus(); }, [phase]);
+
+  function fail(m: string) { setError(m); setShake(true); setTimeout(() => setShake(false), 450); }
+
+  async function complete(value: string) {
+    if (phase === "enter") {
+      setFirst(value);
+      setTimeout(() => { setPin(""); setError(""); setPhase("confirm"); }, 150);
+      return;
+    }
+    if (phase === "confirm") {
+      if (value !== first) {
+        fail("PINs didn't match — start again");
+        setTimeout(() => { setPin(""); setFirst(""); setPhase("enter"); }, 850);
+        return;
+      }
+      setBusy(true);
+      try {
+        const r = await fetch("/api/auth/pin", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "set", pin: value }),
+        });
+        setBusy(false);
+        if (!r.ok) { fail("Couldn't save PIN"); setTimeout(() => { setPin(""); setFirst(""); setPhase("enter"); }, 850); return; }
+        onUnlock();
+      } catch {
+        setBusy(false);
+        fail("Network error"); setTimeout(() => { setPin(""); setFirst(""); setPhase("enter"); }, 850);
+      }
+      return;
+    }
+    setBusy(true);
+    try {
+      const r = await fetch("/api/auth/pin", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "verify", pin: value }),
+      });
+      setBusy(false);
+      if (!r.ok) { fail("Incorrect PIN"); setTimeout(() => setPin(""), 500); return; }
+      onUnlock();
+    } catch {
+      setBusy(false);
+      fail("Network error"); setTimeout(() => setPin(""), 500);
+    }
+  }
+
+  function onInput(e: React.ChangeEvent<HTMLInputElement>) {
+    if (busy) return;
+    const v = e.target.value.replace(/\D/g, "").slice(0, 6);
+    setError(""); setPin(v);
+    if (v.length === 6) complete(v);
+  }
+
+  const title = phase === "enter" ? "Create your admin PIN"
+    : phase === "confirm" ? "Confirm your admin PIN" : "Admin access";
+  const sub = phase === "enter" ? "Set a 6-digit PIN to protect the admin panel"
+    : phase === "confirm" ? "Re-enter the 6 digits to confirm" : "Enter your 6-digit PIN to continue";
+
+  return (
+    <div className="fixed inset-0 z-[100] bg-[#161618] flex flex-col items-center justify-center px-6 py-10">
+      <div className="flex items-center gap-2 mb-auto">
+        <div className="w-6 h-6 rounded-md bg-blue-500 flex items-center justify-center">
+          <Lock className="w-3 h-3 text-white" />
+        </div>
+        <span className="font-normal text-white text-[14px]">VaultX Admin</span>
+      </div>
+      <div className="my-auto flex flex-col items-center">
+        <div className="w-14 h-14 rounded-2xl bg-blue-500/[0.1] border border-blue-500/20 flex items-center justify-center mb-5">
+          <Lock className="w-6 h-6 text-blue-400" />
+        </div>
+        <h1 className="text-[19px] font-light text-white mb-1.5 text-center">{title}</h1>
+        <p className="text-[12px] font-light text-zinc-500 mb-7 text-center">{sub}</p>
+        <motion.div
+          animate={shake ? { x: [0, -8, 8, -6, 6, 0] } : {}} transition={{ duration: 0.4 }}
+          className="relative py-3 px-4 cursor-text" onClick={() => inputRef.current?.focus()}
+        >
+          <div className="flex gap-3.5 justify-center">
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className={`w-3 h-3 rounded-full border transition-all duration-150 ${
+                error ? "border-red-500/50"
+                  : i < pin.length ? "bg-blue-500 border-blue-500 scale-110" : "border-white/15"
+              }`} />
+            ))}
+          </div>
+          <input
+            ref={inputRef} type="password" inputMode="numeric" autoFocus
+            value={pin} onChange={onInput} maxLength={6} aria-label="Admin PIN"
+            className="absolute inset-0 w-full h-full opacity-0" style={{ caretColor: "transparent" }}
+          />
+        </motion.div>
+        <div className="h-5 mt-2">
+          {error && <p className="text-[11px] font-light text-red-400">{error}</p>}
+          {busy && !error && (
+            <p className="text-[11px] font-light text-zinc-600 flex items-center gap-1.5">
+              <Loader2 className="w-3 h-3 animate-spin" /> Verifying…
+            </p>
+          )}
+        </div>
+        <p className="text-[11px] font-light text-zinc-600 mt-1">Type your 6-digit PIN</p>
+      </div>
+      <div className="flex items-center gap-1.5 mt-auto text-zinc-700">
+        <Lock className="w-3 h-3" />
+        <p className="text-[10px] font-light tracking-wide">Restricted area · authorized administrators only</p>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Main Component ─── */
 export default function AdminPage() {
   const router = useRouter();
@@ -449,6 +567,8 @@ export default function AdminPage() {
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
   const [depositFilter, setDepositFilter] = useState<"all" | "pending">("all");
   const [withdrawalFilter, setWithdrawalFilter] = useState<"all" | "active">("all");
+  const [hasPin, setHasPin] = useState(false);
+  const [adminLocked, setAdminLocked] = useState(true);
 
   // Drawer + sheet state
   const [userDrawer, setUserDrawer] = useState<string | null>(null);
@@ -481,6 +601,7 @@ export default function AdminPage() {
       ]);
       const me = await meR.json();
       if (!me.user || me.user.role !== "admin") { router.push("/login"); return; }
+      setHasPin(!!me.hasPin);
       if (usersR.ok) setUsers((await usersR.json()).users ?? []);
       if (depsR.ok) setDeposits((await depsR.json()).deposits ?? []);
       if (wdsR.ok) setWithdrawals((await wdsR.json()).withdrawals ?? []);
@@ -651,6 +772,10 @@ export default function AdminPage() {
         </div>
       </div>
     );
+  }
+
+  if (adminLocked) {
+    return <AdminGate hasPin={hasPin} onUnlock={() => setAdminLocked(false)} />;
   }
 
   return (

@@ -6,6 +6,7 @@ import {
   updateUser,
   getSettings,
 } from "@/lib/db";
+import { sendEmail, emailLayout } from "@/lib/notify";
 
 async function requireAdmin(req: NextRequest) {
   const token = req.cookies.get("vaultx_session")?.value;
@@ -64,6 +65,17 @@ export async function PUT(req: NextRequest) {
     }
 
     await updateUser(user);
+
+    if (action === "confirm") {
+      await sendEmail(user.email, "Deposit confirmed — VaultX",
+        emailLayout("Deposit confirmed",
+          `Your deposit of <b style="color:#fff">${deposit.amount} ${deposit.coin}</b> has been confirmed and credited to your account. It's now earning.`));
+    } else {
+      await sendEmail(user.email, "Deposit update — VaultX",
+        emailLayout("Deposit not approved",
+          `Your deposit of <b style="color:#fff">${deposit.amount} ${deposit.coin}</b> could not be approved.${note ? ` Note from our team: "${note}".` : ""} Please contact support if you have questions.`));
+    }
+
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

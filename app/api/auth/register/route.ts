@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserByEmail, hashPassword, createSession, createUser } from "@/lib/db";
+import { sendEmail, emailLayout } from "@/lib/notify";
 
 export async function POST(req: NextRequest) {
   try {
@@ -49,6 +50,10 @@ export async function POST(req: NextRequest) {
     });
 
     const token = await createSession(user.id);
+
+    await sendEmail(user.email, "Welcome to VaultX",
+      emailLayout(`Welcome, ${user.name.split(" ")[0]}`,
+        "Your VaultX account is ready. You can now make your first deposit and start earning on your crypto. If you didn't create this account, please contact support immediately."));
 
     const response = NextResponse.json({
       success: true,

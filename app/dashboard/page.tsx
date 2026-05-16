@@ -268,7 +268,7 @@ function BalanceStack({ user, activeCoins, locked, hidden, onToggleHidden }: {
   /* ── No assets — single default card ── */
   if (n === 0) {
     return (
-      <div className="relative mb-7 max-w-md mx-auto">
+      <div className="relative mb-7">
         <div className="absolute left-1/2 -translate-x-1/2 -bottom-3 w-[90%] h-full rounded-2xl bg-[#15151a] border border-white/[0.05]" />
         <motion.div
           initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
@@ -307,7 +307,7 @@ function BalanceStack({ user, activeCoins, locked, hidden, onToggleHidden }: {
     .sort((a, b) => b.pos - a.pos);
 
   return (
-    <div className="relative mb-7 max-w-md mx-auto" style={{ height: 224 }}>
+    <div className="relative mb-7" style={{ height: 224 }}>
       {cards.map(({ coin, pos }) => {
         const isFront = pos === 0;
         const bal = (user.balance[coin] || 0) + (user.earnings[coin] || 0);
@@ -2567,8 +2567,9 @@ export default function Dashboard() {
                 {tab === id && <motion.div layoutId="sideNav" className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-blue-500" />}
                 <motion.span className="inline-flex"
                   animate={{ scale: tab === id ? 1.18 : 1, rotate: tab === id ? -6 : 0 }}
-                  transition={{ type: "spring", stiffness: 420, damping: 12 }}>
-                  <Icon className="w-4 h-4" />
+                  transition={{ type: "spring", stiffness: 420, damping: 12 }}
+                  style={{ filter: tab === id ? "drop-shadow(0 0 5px rgba(59,130,246,0.7))" : "none" }}>
+                  <Icon className={`w-4 h-4 ${tab === id ? "text-blue-400" : ""}`} />
                 </motion.span>
                 {label}
               </button>
@@ -2723,7 +2724,8 @@ export default function Dashboard() {
               <motion.span className="inline-flex"
                 animate={{ scale: tab === id ? 1.22 : 1, y: tab === id ? -1 : 0 }}
                 whileTap={{ scale: 0.85 }}
-                transition={{ type: "spring", stiffness: 440, damping: 12 }}>
+                transition={{ type: "spring", stiffness: 440, damping: 12 }}
+                style={{ filter: tab === id ? "drop-shadow(0 0 6px rgba(59,130,246,0.65))" : "none" }}>
                 <Icon className="w-[18px] h-[18px]" />
               </motion.span>
               <span className="text-[9px] font-light tracking-wide">{label}</span>

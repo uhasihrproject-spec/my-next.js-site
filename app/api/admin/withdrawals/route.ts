@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionByToken, getUserById, getUsers, updateUser } from "@/lib/db";
+import { sendEmail, emailLayout } from "@/lib/notify";
 
 async function requireAdmin(req: NextRequest) {
   const token = req.cookies.get("vaultx_session")?.value;
@@ -70,6 +71,19 @@ export async function PUT(req: NextRequest) {
 
     if (note) withdrawal.note = note;
     await updateUser(user);
+
+    const amt = `<b style="color:#fff">${withdrawal.amount} ${withdrawal.coin}</b>`;
+    if (action === "process") {
+      await sendEmail(user.email, "Withdrawal processing — VaultX",
+        emailLayout("Withdrawal is processing", `Your withdrawal of ${amt} is now being processed. Funds typically arrive within 24–48 hours.`));
+    } else if (action === "complete") {
+      await sendEmail(user.email, "Withdrawal completed — VaultX",
+        emailLayout("Withdrawal completed", `Your withdrawal of ${amt} has been completed and sent to your wallet.`));
+    } else {
+      await sendEmail(user.email, "Withdrawal update — VaultX",
+        emailLayout("Withdrawal not approved", `Your withdrawal of ${amt} could not be approved.${note ? ` Note from our team: "${note}".` : ""}`));
+    }
+
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

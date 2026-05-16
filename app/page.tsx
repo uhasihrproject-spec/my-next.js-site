@@ -6,6 +6,7 @@ import HowItWorks from "@/components/HowItWorks";
 import FeatureShowcase from "@/components/FeatureShowcase";
 import SupportedCoins from "@/components/SupportedCoins";
 import Testimonials from "@/components/Testimonials";
+import MobileApp from "@/components/MobileApp";
 import Pricing from "@/components/Pricing";
 import CTABanner from "@/components/CTABanner";
 import FAQ from "@/components/FAQ";
@@ -23,6 +24,7 @@ export default function Home() {
       <FeatureShowcase />
       <SupportedCoins />
       <Testimonials />
+      <MobileApp />
       <Pricing />
       <CTABanner />
       <FAQ />

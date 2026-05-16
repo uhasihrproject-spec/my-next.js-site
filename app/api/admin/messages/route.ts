@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { getMessages, saveMessages, createMessage, getUserById } from "@/lib/db";
+import { sendEmail, emailLayout } from "@/lib/notify";
 
 export async function GET() {
   try {
@@ -78,6 +79,11 @@ export async function PUT(req: NextRequest) {
       from: "admin",
       read: false,
     });
+
+    await sendEmail(user.email, "New message from VaultX support",
+      emailLayout("You have a new message",
+        `Our support team replied to you:<br/><br/><i style="color:#d4d4d8">"${text.trim().slice(0, 300)}"</i><br/><br/>Open VaultX and head to the chat to continue the conversation.`));
+
     return NextResponse.json({ message });
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
