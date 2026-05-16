@@ -6,10 +6,11 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   TrendingUp, Eye, EyeOff, Loader2, ShieldCheck,
-  Check, User, Mail, Phone, Globe, Calendar, KeyRound,
+  Check, User, Mail, Globe, Calendar, KeyRound,
   ArrowRight, ArrowLeft, AlertCircle, Snowflake, ScanFace,
-  Camera, RotateCw, MessageSquareText,
+  Camera, RotateCw, MessageSquareText, ChevronDown,
 } from "lucide-react";
+import { COUNTRIES as PHONE_COUNTRIES, isoToFlag, countryByIso } from "@/lib/countries";
 
 const COUNTRIES = [
   "United States", "United Kingdom", "Canada", "Australia", "Germany",
@@ -69,6 +70,46 @@ function CodeInput({ value, onChange, disabled }: { value: string; onChange: (v:
   );
 }
 
+/* ════════ Country-code phone input ════════ */
+function PhoneField({ iso, number, onChange }: {
+  iso: string; number: string; onChange: (iso: string, number: string) => void;
+}) {
+  const country = countryByIso(iso);
+  return (
+    <div className="flex gap-2">
+      {/* Country picker — sets the dial code automatically */}
+      <div className="relative shrink-0 w-[140px]">
+        <select
+          value={iso}
+          onChange={(e) => onChange(e.target.value, number)}
+          className="w-full appearance-none pl-3 pr-7 py-2.5 bg-[#0c0c0d] border border-white/[0.08] rounded-lg text-white text-[12px] focus:outline-none focus:border-blue-500/40 transition-colors cursor-pointer truncate"
+        >
+          {PHONE_COUNTRIES.map((c) => (
+            <option key={c.iso} value={c.iso} className="bg-[#0c0c0d] text-white">
+              {isoToFlag(c.iso)} {c.name}
+            </option>
+          ))}
+        </select>
+        <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-zinc-600 pointer-events-none" />
+      </div>
+
+      {/* Number — dial code shown as a fixed prefix, you just type the digits */}
+      <div className="flex-1 flex items-center bg-[#0c0c0d] border border-white/[0.08] rounded-lg focus-within:border-blue-500/40 transition-colors">
+        <span className="pl-3 pr-1.5 text-[13px] text-zinc-400 font-mono select-none shrink-0">+{country.dial}</span>
+        <span className="w-px h-4 bg-white/[0.08] shrink-0" />
+        <input
+          type="tel"
+          inputMode="numeric"
+          value={number}
+          onChange={(e) => onChange(iso, e.target.value.replace(/\D/g, ""))}
+          placeholder="Phone number"
+          className="flex-1 min-w-0 bg-transparent pl-2.5 pr-3 py-2.5 text-white text-[13px] placeholder-zinc-700 focus:outline-none"
+        />
+      </div>
+    </div>
+  );
+}
+
 /* ════════ Step 1 — Details ════════ */
 function DetailsStep({ form, setForm, agree, setAgree, consent, setConsent, dir, onNext }: {
   form: Record<string, string>;
@@ -97,6 +138,9 @@ function DetailsStep({ form, setForm, agree, setAgree, consent, setConsent, dir,
       setError("Please complete every field — all details are required for verification."); return;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) { setError("Enter a valid email address"); return; }
+    if ((form.phone || "").replace(/\D/g, "").length < 8) {
+      setError("Enter a valid phone number for the country you selected."); return;
+    }
     {
       const birth = new Date(form.dob);
       const today = new Date();
@@ -133,9 +177,25 @@ function DetailsStep({ form, setForm, agree, setAgree, consent, setConsent, dir,
             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-600" />
             <input type="email" value={form.email} onChange={set("email")} placeholder="Email address" className={fieldCls} />
           </div>
-          <div className="relative">
-            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-600" />
-            <input type="tel" value={form.phone} onChange={set("phone")} placeholder="Phone (with country code, e.g. +1…)" className={fieldCls} />
+          <div>
+            <PhoneField
+              iso={form.phoneIso || "US"}
+              number={form.phoneNumber || ""}
+              onChange={(pIso, pNum) => {
+                const clean = pNum.replace(/\D/g, "");
+                const local = clean.replace(/^0+/, ""); // drop trunk 0 for international format
+                const dial = countryByIso(pIso).dial;
+                setForm({
+                  ...form,
+                  phoneIso: pIso,
+                  phoneNumber: clean,
+                  phone: local ? `+${dial}${local}` : "",
+                });
+              }}
+            />
+            <p className="text-[10px] font-light text-zinc-600 mt-1.5 pl-1">
+              Pick your country, then type your number with no spaces (the leading 0 isn&apos;t needed).
+            </p>
           </div>
           <div className="relative">
             <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-600 z-10" />
@@ -608,7 +668,8 @@ export default function SignupPage() {
   const [step, setStep] = useState<Step>("details");
   const [dir, setDir] = useState(1);
   const [form, setForm] = useState<Record<string, string>>({
-    name: "", email: "", phone: "", country: "", dob: "", password: "", confirm: "",
+    name: "", email: "", phone: "", phoneIso: "US", phoneNumber: "",
+    country: "", dob: "", password: "", confirm: "",
   });
   const [agree, setAgree] = useState(false);
   const [consent, setConsent] = useState(false);
