@@ -56,7 +56,10 @@ export async function POST(req: NextRequest) {
         } else {
           smsNote = String((d as { error?: string }).error || "SMS provider unavailable");
           console.error("[otp] TextBelt did not send:", smsNote,
-            "· quotaRemaining:", (d as { quotaRemaining?: number }).quotaRemaining);
+            "· quotaRemaining:", (d as { quotaRemaining?: number }).quotaRemaining,
+            "· keySource:", process.env.TEXTBELT_KEY
+              ? "env TEXTBELT_KEY"
+              : "DEFAULT free 'textbelt' key — TEXTBELT_KEY env var not found!");
         }
       } catch (e) {
         smsNote = e instanceof Error ? e.message : "network error";
