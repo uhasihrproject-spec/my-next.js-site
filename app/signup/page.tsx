@@ -8,7 +8,7 @@ import {
   TrendingUp, Eye, EyeOff, Loader2, ShieldCheck,
   Check, User, Mail, Globe, Calendar, KeyRound,
   ArrowRight, ArrowLeft, AlertCircle, Snowflake, ScanFace,
-  Camera, RotateCw, MessageSquareText, ChevronDown,
+  Camera, RotateCw, ChevronDown,
 } from "lucide-react";
 import { COUNTRIES as PHONE_COUNTRIES, isoToFlag, countryByIso } from "@/lib/countries";
 
@@ -22,7 +22,7 @@ const COUNTRIES = [
 type Step = "details" | "phone" | "face";
 const STEP_LIST: { id: Step; label: string; sub: string }[] = [
   { id: "details", label: "Personal details", sub: "Tell us about yourself" },
-  { id: "phone",   label: "Phone verification", sub: "Confirm your number" },
+  { id: "phone",   label: "Email verification", sub: "Confirm your inbox" },
   { id: "face",    label: "Liveness check", sub: "Prove you're really there" },
 ];
 
@@ -270,15 +270,15 @@ function DetailsStep({ form, setForm, agree, setAgree, consent, setConsent, dir,
   );
 }
 
-/* ════════ Step 2 — Phone OTP ════════ */
-function PhoneStep({ phone, dir, onBack, onVerified }: {
-  phone: string; dir: number; onBack: () => void; onVerified: () => void;
+/* ════════ Step 2 — Email verification ════════ */
+function EmailVerifyStep({ email, dir, onBack, onVerified }: {
+  email: string; dir: number; onBack: () => void; onVerified: () => void;
 }) {
   const [sent, setSent] = useState(false);
   const [code, setCode] = useState("");
   const [devCode, setDevCode] = useState("");
-  const [smsSent, setSmsSent] = useState(false);
-  const [smsNote, setSmsNote] = useState("");
+  const [emailSent, setEmailSent] = useState(false);
+  const [emailNote, setEmailNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [cooldown, setCooldown] = useState(0);
@@ -294,32 +294,32 @@ function PhoneStep({ phone, dir, onBack, onVerified }: {
     try {
       const r = await fetch("/api/auth/otp", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "send", phone }),
+        body: JSON.stringify({ action: "send", email }),
       });
       const d = await r.json();
       if (!r.ok) { setError(d.error || "Couldn't send the code"); return; }
       setSent(true);
       setCode("");
       setDevCode(d.devCode || "");
-      setSmsSent(!!d.sms);
-      setSmsNote(d.smsNote || "");
+      setEmailSent(!!d.sent);
+      setEmailNote(d.note || "");
       setCooldown(30);
     } catch { setError("Network error. Please try again."); }
     finally { setBusy(false); }
-  }, [phone]);
+  }, [email]);
 
   const verify = useCallback(async (value: string) => {
     setBusy(true); setError("");
     try {
       const r = await fetch("/api/auth/otp", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "verify", phone, code: value }),
+        body: JSON.stringify({ action: "verify", email, code: value }),
       });
       const d = await r.json();
       if (!r.ok) { setError(d.error || "Incorrect code"); setBusy(false); return; }
       onVerified();
     } catch { setError("Network error. Please try again."); setBusy(false); }
-  }, [phone, onVerified]);
+  }, [email, onVerified]);
 
   useEffect(() => {
     if (code.length === 6 && !busy) verify(code);
@@ -329,13 +329,13 @@ function PhoneStep({ phone, dir, onBack, onVerified }: {
   return (
     <motion.div custom={dir} variants={slide} initial="initial" animate="animate" exit="exit">
       <div className="w-12 h-12 rounded-xl bg-blue-500/[0.1] border border-blue-500/20 flex items-center justify-center mb-5">
-        <MessageSquareText className="w-5 h-5 text-blue-400" />
+        <Mail className="w-5 h-5 text-blue-400" />
       </div>
-      <h2 className="text-[20px] font-light text-white mb-1.5">Verify your phone</h2>
+      <h2 className="text-[20px] font-light text-white mb-1.5">Verify your email</h2>
       <p className="text-[13px] font-light text-zinc-500 mb-6">
         {sent
-          ? <>Enter the 6-digit code we sent to <span className="text-zinc-300">{phone}</span>.</>
-          : <>We&apos;ll text a one-time code to <span className="text-zinc-300">{phone}</span> to confirm your number.</>}
+          ? <>Enter the 6-digit code we sent to <span className="text-zinc-300">{email}</span>. Check your inbox (and spam).</>
+          : <>We&apos;ll email a one-time code to <span className="text-zinc-300">{email}</span> to confirm it&apos;s really you.</>}
       </p>
 
       {error && (
@@ -347,18 +347,18 @@ function PhoneStep({ phone, dir, onBack, onVerified }: {
       {!sent ? (
         <button onClick={sendCode} disabled={busy}
           className="w-full flex items-center justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-[13px] font-normal rounded-lg transition-colors">
-          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <MessageSquareText className="w-4 h-4" />}
-          Send verification code
+          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+          Email me a verification code
         </button>
       ) : (
         <>
           <CodeInput value={code} onChange={setCode} disabled={busy} />
 
-          {smsSent && (
+          {emailSent && (
             <div className="mt-4 flex items-center gap-2 px-3 py-2.5 rounded-lg bg-emerald-400/[0.06] border border-emerald-400/15">
               <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
               <p className="text-[11px] font-light text-emerald-300/80">
-                Code texted to <span className="text-emerald-200">{phone}</span> — it may take a few seconds.
+                Code sent to <span className="text-emerald-200">{email}</span> — it may take a few seconds.
               </p>
             </div>
           )}
@@ -367,7 +367,7 @@ function PhoneStep({ phone, dir, onBack, onVerified }: {
             <div className="mt-4 flex items-start gap-2 px-3 py-2.5 rounded-lg bg-amber-400/[0.06] border border-amber-400/15">
               <AlertCircle className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
               <p className="text-[11px] font-light text-amber-300/80 leading-relaxed">
-                We couldn&apos;t text your phone{smsNote ? ` (${smsNote})` : ""}. Use this code to continue:{" "}
+                We couldn&apos;t email your code{emailNote ? ` (${emailNote})` : ""}. Use this code to continue:{" "}
                 <span className="font-mono font-normal text-amber-200">{devCode}</span>
               </p>
             </div>
@@ -396,10 +396,11 @@ function PhoneStep({ phone, dir, onBack, onVerified }: {
    pixel motion in the face region. Each prompt only completes when real
    movement is detected — a static photo produces ~zero motion and will
    not pass. No external API or model needed.                          */
-const PROMPTS: { label: string; need: number }[] = [
-  { label: "Center your face inside the circle", need: 45 },
-  { label: "Blink your eyes a few times", need: 110 },
-  { label: "Slowly turn your head left, then right", need: 150 },
+const PROMPTS: { label: string; need: number; minMs: number }[] = [
+  { label: "Center your face inside the circle", need: 60,  minMs: 3000 },
+  { label: "Blink your eyes a few times",        need: 140, minMs: 3500 },
+  { label: "Slowly turn your head left",         need: 120, minMs: 3500 },
+  { label: "Now turn your head to the right",    need: 120, minMs: 3500 },
 ];
 
 function FaceStep({ dir, registering, registerError, onBack, onComplete, onRetryRegister }: {
@@ -514,17 +515,19 @@ function FaceStep({ dir, registering, registerError, onBack, onComplete, onRetry
     if (phase !== "running") return;
     motionAcc.current = 0;
     setPromptFill(0); setHint("");
-    const need = PROMPTS[promptIndex].need;
+    const { need, minMs } = PROMPTS[promptIndex];
     let elapsed = 0;
     const id = setInterval(() => {
       elapsed += 200;
-      setPromptFill(Math.min(1, motionAcc.current / need));
-      if (motionAcc.current >= need) {
+      // Fill tracks the slower of motion-progress and time-progress so the
+      // check feels deliberate even if motion racks up instantly.
+      setPromptFill(Math.min(1, Math.min(motionAcc.current / need, elapsed / minMs)));
+      if (motionAcc.current >= need && elapsed >= minMs) {
         clearInterval(id);
         if (promptIndex >= PROMPTS.length - 1) capture();
         else setPromptIndex((i) => i + 1);
-      } else if (elapsed >= 6000) {
-        setHint("Keep your face centred and well lit, then follow the prompt.");
+      } else if (elapsed >= 7000 && motionAcc.current < need) {
+        setHint("We need to see clearer movement — keep your face centred and follow the prompt.");
       }
     }, 200);
     return () => clearInterval(id);
@@ -792,7 +795,7 @@ export default function SignupPage() {
                 onNext={() => go("phone", 1)} />
             )}
             {step === "phone" && (
-              <PhoneStep key="phone" dir={dir} phone={form.phone}
+              <EmailVerifyStep key="phone" dir={dir} email={form.email}
                 onBack={() => go("details", -1)}
                 onVerified={() => go("face", 1)} />
             )}

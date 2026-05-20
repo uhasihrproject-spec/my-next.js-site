@@ -8,7 +8,7 @@ const TIERS = [
     name: "Starter",
     apy: "8%",
     sub: "Any amount",
-    features: ["All 6 coins", "30-day lock-up", "Personal dashboard", "24–48h withdrawals"],
+    features: ["All 20 coins", "30-day lock-up", "Personal dashboard", "24–48h withdrawals"],
     primary: false,
   },
   {

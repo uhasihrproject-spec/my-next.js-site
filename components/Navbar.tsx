@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import ThemeToggle from "./ThemeToggle";
 
 const LINKS = [
   { label: "Features", href: "/#features" },
@@ -38,9 +39,12 @@ export default function Navbar() {
   }
 
   return (
-    <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
-      scrolled ? "bg-[#161618]/90 backdrop-blur-xl border-b border-white/[0.05]" : "bg-transparent"
-    }`}>
+    <header
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
+        scrolled ? "backdrop-blur-xl border-b border-[var(--line-1)]" : "border-b border-transparent"
+      }`}
+      style={{ backgroundColor: scrolled ? "color-mix(in srgb, var(--surface-0) 88%, transparent)" : "transparent" }}
+    >
       <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
 
         <Link href="/" className="flex items-center gap-2.5">
@@ -65,6 +69,7 @@ export default function Navbar() {
         </nav>
 
         <div className="hidden md:flex items-center gap-2">
+          <ThemeToggle />
           {user ? (
             <>
               <Link href={user.role === "admin" ? "/admin" : "/dashboard"}
@@ -88,14 +93,17 @@ export default function Navbar() {
           )}
         </div>
 
-        <button onClick={() => setOpen(!open)} className="md:hidden flex flex-col gap-[5px] w-9 h-9 items-center justify-center" aria-label="Menu">
+        <div className="md:hidden flex items-center gap-2">
+          <ThemeToggle compact />
+        <button onClick={() => setOpen(!open)} className="flex flex-col gap-[5px] w-9 h-9 items-center justify-center" aria-label="Menu">
           <span className={`h-px w-5 bg-zinc-400 transition-all ${open ? "rotate-45 translate-y-[7px]" : ""}`} />
           <span className={`h-px w-5 bg-zinc-400 transition-all ${open ? "opacity-0" : ""}`} />
           <span className={`h-px w-5 bg-zinc-400 transition-all ${open ? "-rotate-45 -translate-y-[7px]" : ""}`} />
         </button>
+        </div>
       </div>
 
-      <div className={`md:hidden overflow-hidden transition-all duration-300 ${open ? "max-h-80" : "max-h-0"} bg-[#161618] border-b border-white/[0.05]`}>
+      <div className={`md:hidden overflow-hidden transition-all duration-300 ${open ? "max-h-80" : "max-h-0"} border-b border-[var(--line-1)]`} style={{ backgroundColor: "var(--surface-0)" }}>
         <div className="px-6 pt-2 pb-5 flex flex-col gap-0.5">
           {LINKS.map((n) => (
             <Link key={n.label} href={n.href} onClick={() => setOpen(false)}

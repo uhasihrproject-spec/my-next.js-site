@@ -1,9 +1,65 @@
 @import "tailwindcss";
 
-:root {
+/* ════════════════════════════════════════════════════════════════
+   THEME TOKENS
+   --surface-{0..3}  page → deep
+   --fg-{1..5}       white → muted
+   --line-{1,2}      subtle → strong
+   ════════════════════════════════════════════════════════════════*/
+:root,
+html[data-theme="dark"] {
   --background: #161618;
   --foreground: #f0f0f0;
+
+  --surface-0: #161618;
+  --surface-1: #1a1a1e;
+  --surface-2: #202024;
+  --surface-3: #0a0a0c;
+  --surface-blue: #131b2e;
+
+  --fg-1: #ffffff;
+  --fg-2: #e4e4e7;
+  --fg-3: #a1a1aa;
+  --fg-4: #71717a;
+  --fg-5: #52525b;
+
+  --line-1: rgba(255,255,255,0.06);
+  --line-2: rgba(255,255,255,0.12);
+  --line-soft: rgba(255,255,255,0.04);
+
+  --tint-low:  rgba(255,255,255,0.04);
+  --tint-mid:  rgba(255,255,255,0.07);
+  --tint-high: rgba(255,255,255,0.10);
+
+  --shadow-card: 0 4px 18px rgba(0,0,0,0.35);
   --font-sans: var(--font-space);
+}
+
+html[data-theme="light"] {
+  --background: #f5f5f7;
+  --foreground: #0a0a0c;
+
+  --surface-0: #f5f5f7;
+  --surface-1: #ffffff;
+  --surface-2: #ececef;
+  --surface-3: #e6e6ea;
+  --surface-blue: #eef3ff;
+
+  --fg-1: #0a0a0c;
+  --fg-2: #1f1f23;
+  --fg-3: #52525b;
+  --fg-4: #71717a;
+  --fg-5: #9b9ba3;
+
+  --line-1: rgba(10,10,12,0.08);
+  --line-2: rgba(10,10,12,0.14);
+  --line-soft: rgba(10,10,12,0.05);
+
+  --tint-low:  rgba(10,10,12,0.03);
+  --tint-mid:  rgba(10,10,12,0.06);
+  --tint-high: rgba(10,10,12,0.10);
+
+  --shadow-card: 0 1px 2px rgba(10,10,12,0.04), 0 8px 24px rgba(10,10,12,0.06);
 }
 
 @theme inline {
@@ -12,13 +68,8 @@
   --font-sans: var(--font-space);
 }
 
-* {
-  box-sizing: border-box;
-}
-
-html {
-  scroll-behavior: smooth;
-}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
 
 body {
   background: var(--background);
@@ -27,12 +78,213 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-weight: 300;
+  transition: background-color 0.7s ease, color 0.7s ease;
+}
+
+/* Smooth color crossfade on every themable surface during transition */
+html.theme-transitioning *,
+html.theme-transitioning *::before,
+html.theme-transitioning *::after {
+  transition:
+    background-color 0.65s ease,
+    color 0.65s ease,
+    border-color 0.65s ease,
+    fill 0.65s ease,
+    stroke 0.65s ease,
+    box-shadow 0.65s ease !important;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   LIGHT MODE OVERRIDES
+   Maps every hardcoded dark hex / zinc utility used across the site
+   to its readable light equivalent so we don't have to edit every
+   component.
+   ════════════════════════════════════════════════════════════════
+
+   Escape hatch: any element with [data-keep-dark] (and its descendants)
+   are left alone — for "premium" credit-card-style surfaces that should
+   stay visually dark in both modes.
+*/
+
+/* -- Dark hex surfaces → light surfaces -------------------------
+   Preserve a 3-tier hierarchy in light mode:
+   • Page bg  (darkest greys + admin chrome): off-white
+   • Panel    (sidebar / nav chrome):         white-grey
+   • Card     (raised cards & modals):        pure white
+*/
+/* Page-level dark roots */
+html[data-theme="light"] [class*="bg-[#0a0a0a]"]:not([data-keep-dark] *):not([data-keep-dark]),
+html[data-theme="light"] [class*="bg-[#0a0a0b]"]:not([data-keep-dark] *):not([data-keep-dark]),
+html[data-theme="light"] [class*="bg-[#0a0a0d]"]:not([data-keep-dark] *):not([data-keep-dark]),
+html[data-theme="light"] [class*="bg-[#141418]"]:not([data-keep-dark] *):not([data-keep-dark]),
+html[data-theme="light"] [class*="bg-[#161618]"]:not([data-keep-dark] *):not([data-keep-dark])
+{ background-color: var(--surface-0) !important; }
+
+/* Panels: sidebar, secondary chrome (admin uses #111113, dashboard uses #0c0c0d).
+   Painted pure white so they sit ABOVE the off-white page bg, separated
+   by their existing borders. */
+html[data-theme="light"] [class*="bg-[#0c0c0c]"]:not([data-keep-dark] *):not([data-keep-dark]),
+html[data-theme="light"] [class*="bg-[#0c0c0d]"]:not([data-keep-dark] *):not([data-keep-dark]),
+html[data-theme="light"] [class*="bg-[#0e0e10]"]:not([data-keep-dark] *):not([data-keep-dark]),
+html[data-theme="light"] [class*="bg-[#0e101a]"]:not([data-keep-dark] *):not([data-keep-dark]),
+html[data-theme="light"] [class*="bg-[#111113]"]:not([data-keep-dark] *):not([data-keep-dark])
+{ background-color: var(--surface-1) !important; }
+
+/* Cards / modals (raised surfaces): pure white */
+html[data-theme="light"] [class*="bg-[#101012]"]:not([data-keep-dark] *):not([data-keep-dark]),
+html[data-theme="light"] [class*="bg-[#1a1a1e]"]:not([data-keep-dark] *):not([data-keep-dark]),
+html[data-theme="light"] [class*="bg-[#1a1a22]"]:not([data-keep-dark] *):not([data-keep-dark]),
+html[data-theme="light"] [class*="bg-[#1d1d20]"]:not([data-keep-dark] *):not([data-keep-dark]),
+html[data-theme="light"] [class*="bg-[#1e1e22]"]:not([data-keep-dark] *):not([data-keep-dark]),
+html[data-theme="light"] [class*="bg-[#1e1e24]"]:not([data-keep-dark] *):not([data-keep-dark]),
+html[data-theme="light"] [class*="bg-[#222228]"]:not([data-keep-dark] *):not([data-keep-dark])
+{ background-color: var(--surface-1) !important; }
+
+/* Tinted blue cards (#131b2e etc.) get a soft tinted-white surface,
+   but ONLY when not inside a [data-keep-dark] (so the BalanceStack
+   "premium" card's halo behind it stays dark). */
+html[data-theme="light"] [class*="bg-[#131b2e]"]:not([data-keep-dark] *):not([data-keep-dark]),
+html[data-theme="light"] [class*="bg-[#101733]"]:not([data-keep-dark] *):not([data-keep-dark])
+{ background-color: var(--surface-blue) !important; }
+
+html[data-theme="light"] .bg-black:not([data-keep-dark] *):not([data-keep-dark]),
+html[data-theme="light"] [class*="bg-gray-950"]:not([data-keep-dark] *):not([data-keep-dark]),
+html[data-theme="light"] [class*="bg-gray-900"]:not([data-keep-dark] *):not([data-keep-dark]),
+html[data-theme="light"] [class*="bg-gray-800"]:not([data-keep-dark] *):not([data-keep-dark])
+{ background-color: var(--surface-0) !important; }
+
+/* -- Modal backdrops: keep dim but lighter ---------------------- */
+html[data-theme="light"] [class*="bg-black/70"]:not([data-keep-dark] *),
+html[data-theme="light"] [class*="bg-black/60"]:not([data-keep-dark] *),
+html[data-theme="light"] [class*="bg-black/50"]:not([data-keep-dark] *)
+{ background-color: rgba(10,10,12,0.35) !important; }
+
+/* -- White-alpha overlays inverted to dark-alpha in light ------- */
+html[data-theme="light"] [class*="bg-white/[0.02]"]:not([data-keep-dark] *) { background-color: rgba(10,10,12,0.03) !important; }
+html[data-theme="light"] [class*="bg-white/[0.04]"]:not([data-keep-dark] *),
+html[data-theme="light"] [class*="bg-white/[0.05]"]:not([data-keep-dark] *) { background-color: rgba(10,10,12,0.05) !important; }
+html[data-theme="light"] [class*="bg-white/[0.06]"]:not([data-keep-dark] *),
+html[data-theme="light"] [class*="bg-white/[0.07]"]:not([data-keep-dark] *),
+html[data-theme="light"] [class*="bg-white/[0.08]"]:not([data-keep-dark] *) { background-color: rgba(10,10,12,0.08) !important; }
+html[data-theme="light"] [class*="bg-white/[0.1]"]:not([data-keep-dark] *),
+html[data-theme="light"] [class*="bg-white/[0.12]"]:not([data-keep-dark] *) { background-color: rgba(10,10,12,0.11) !important; }
+
+/* -- Text scale (zinc/gray) ------------------------------------- */
+html[data-theme="light"] .text-white:not([data-keep-dark] *):not([data-keep-dark]),
+html[data-theme="light"] [class*="text-zinc-100"]:not([data-keep-dark] *) { color: var(--fg-1) !important; }
+html[data-theme="light"] [class*="text-zinc-200"]:not([data-keep-dark] *),
+html[data-theme="light"] [class*="text-zinc-300"]:not([data-keep-dark] *) { color: var(--fg-2) !important; }
+html[data-theme="light"] [class*="text-zinc-400"]:not([data-keep-dark] *),
+html[data-theme="light"] [class*="text-zinc-500"]:not([data-keep-dark] *),
+html[data-theme="light"] [class*="text-gray-400"]:not([data-keep-dark] *) { color: var(--fg-3) !important; }
+html[data-theme="light"] [class*="text-zinc-600"]:not([data-keep-dark] *),
+html[data-theme="light"] [class*="text-gray-300"]:not([data-keep-dark] *) { color: var(--fg-4) !important; }
+html[data-theme="light"] [class*="text-zinc-700"]:not([data-keep-dark] *),
+html[data-theme="light"] [class*="text-zinc-800"]:not([data-keep-dark] *) { color: var(--fg-5) !important; }
+
+/* -- Tinted blue/emerald muted texts that read poorly on white -- */
+html[data-theme="light"] [class*="text-blue-100/"]:not([data-keep-dark] *),
+html[data-theme="light"] [class*="text-blue-200/"]:not([data-keep-dark] *),
+html[data-theme="light"] [class*="text-blue-300/"]:not([data-keep-dark] *) { color: #3b5a8a !important; }
+html[data-theme="light"] [class*="text-emerald-400/"]:not([data-keep-dark] *) { color: #0f8f60 !important; }
+html[data-theme="light"] [class*="text-red-400"]:not([data-keep-dark] *)    { color: #d93748 !important; }
+html[data-theme="light"] [class*="text-amber-400"]:not([data-keep-dark] *)  { color: #b97a06 !important; }
+
+/* -- Borders / dividers ----------------------------------------- */
+html[data-theme="light"] [class*="border-white/"]:not([data-keep-dark] *):not([data-keep-dark]) { border-color: var(--line-1) !important; }
+html[data-theme="light"] [class*="divide-white/"]:not([data-keep-dark] *) > * + * { border-color: var(--line-1) !important; }
+html[data-theme="light"] [class*="border-zinc-400"]:not([data-keep-dark] *) { border-color: var(--line-2) !important; }
+
+/* -- Inline white-ish rgba borders/backgrounds ------------------ */
+html[data-theme="light"] [style*="rgba(255,255,255,0.05)"]:not([data-keep-dark] *),
+html[data-theme="light"] [style*="rgba(255,255,255,0.04)"]:not([data-keep-dark] *) {
+  border-color: var(--line-1) !important;
+}
+
+/* -- Inputs / placeholders -------------------------------------- */
+html[data-theme="light"] input,
+html[data-theme="light"] textarea,
+html[data-theme="light"] select { color: var(--fg-1); }
+html[data-theme="light"] input::placeholder,
+html[data-theme="light"] textarea::placeholder { color: var(--fg-4); }
+html[data-theme="light"] [class*="placeholder-zinc-700"]::placeholder,
+html[data-theme="light"] [class*="placeholder-zinc-600"]::placeholder { color: var(--fg-4) !important; }
+
+/* -- Faint ambient blue/purple glows: dial them down ------------ */
+html[data-theme="light"] [class*="bg-blue-600/[0.0"]:not([data-keep-dark] *) { background-color: rgba(59,130,246,0.05) !important; }
+html[data-theme="light"] [class*="bg-purple-600/[0.0"]:not([data-keep-dark] *) { background-color: rgba(168,85,247,0.05) !important; }
+html[data-theme="light"] [class*="bg-blue-600/15"]:not([data-keep-dark] *),
+html[data-theme="light"] [class*="bg-blue-500/15"]:not([data-keep-dark] *)    { background-color: rgba(59,130,246,0.14) !important; }
+html[data-theme="light"] [class*="bg-blue-500/[0.07]"]:not([data-keep-dark] *),
+html[data-theme="light"] [class*="bg-blue-500/[0.08]"]:not([data-keep-dark] *) { background-color: rgba(59,130,246,0.09) !important; }
+html[data-theme="light"] [class*="bg-emerald-400/[0.0"]:not([data-keep-dark] *) { background-color: rgba(16,185,129,0.10) !important; }
+html[data-theme="light"] [class*="bg-amber-400/[0.0"]:not([data-keep-dark] *)   { background-color: rgba(245,158,11,0.12) !important; }
+html[data-theme="light"] [class*="bg-red-500/[0.0"]:not([data-keep-dark] *)     { background-color: rgba(239,68,68,0.10) !important; }
+html[data-theme="light"] [class*="bg-amber-400/15"]:not([data-keep-dark] *)     { background-color: rgba(245,158,11,0.18) !important; }
+
+/* -- Subtle grid overlays on dark hero look like dust in light -- */
+html[data-theme="light"] [style*="linear-gradient(rgba(255,255,255,1)"] { opacity: 0.045 !important; filter: invert(1); }
+
+/* -- Make solid blue chips pop on white ------------------------- */
+html[data-theme="light"] .bg-blue-600  { color: #ffffff !important; }
+html[data-theme="light"] .bg-blue-500  { color: #ffffff !important; }
+
+/* -- Card lift: anything that looks like a card on a light page
+      gets a soft elevation for definition --------------------- */
+html[data-theme="light"] [class*="bg-[#1a1a1e]"]:not([data-keep-dark] *):not([data-keep-dark]),
+html[data-theme="light"] [class*="bg-[#101012]"]:not([data-keep-dark] *):not([data-keep-dark]),
+html[data-theme="light"] [class*="bg-[#0c0c0d]"]:not([data-keep-dark] *):not([data-keep-dark]),
+html[data-theme="light"] [class*="bg-[#0a0a0b]"]:not([data-keep-dark] *):not([data-keep-dark])
+{ box-shadow: var(--shadow-card); }
+
+/* ════════════════════════════════════════════════════════════════
+   SUNRISE / SUNSET TRANSITION OVERLAY
+   ════════════════════════════════════════════════════════════════*/
+.sky-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0;
+}
+.sky-overlay.is-active { opacity: 1; }
+
+.sky-to-light {
+  /* Dawn: deep night at top, warm horizon, soft morning at bottom */
+  background:
+    radial-gradient(120% 70% at 50% 100%, #fff5e6 0%, transparent 55%),
+    linear-gradient(180deg, #1a1a3e 0%, #4a3a6e 22%, #c44569 48%, #ff8c61 70%, #ffd89b 85%, #fff5e6 100%);
+}
+.sky-to-dark {
+  /* Dusk: soft sky at top, fiery sunset, deep night below */
+  background:
+    radial-gradient(120% 70% at 50% 0%, #ffd89b 0%, transparent 50%),
+    linear-gradient(180deg, #ffd89b 0%, #ff8c61 18%, #c44569 35%, #4a3a6e 65%, #1a1a3e 100%);
+}
+
+/* Sun/moon disc that swipes during the transition */
+.sky-disc {
+  position: absolute;
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  left: 50%;
+  transform: translate(-50%, 0);
+  filter: blur(0.5px);
+  box-shadow: 0 0 80px 30px rgba(255, 220, 160, 0.55);
+}
+.sky-to-light .sky-disc {
+  background: radial-gradient(circle, #fff5d0 0%, #ffd07a 60%, #ff9a4b 100%);
+}
+.sky-to-dark .sky-disc {
+  background: radial-gradient(circle, #f4f4f4 0%, #d1d5db 70%, #94a3b8 100%);
+  box-shadow: 0 0 60px 20px rgba(180, 190, 220, 0.40);
 }
 
 /* Thin scrollbar */
 ::-webkit-scrollbar { width: 3px; height: 3px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.07); border-radius: 99px; }
+::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 99px; }
 
 /* Price ticker */
 @keyframes ticker {

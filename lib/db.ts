@@ -6,9 +6,16 @@ import { getStore } from "@netlify/blobs";
 const DATA_DIR = path.join(process.cwd(), "data");
 const STORE_NAME = "vaultx-data";
 
-export type CoinKey = "BTC" | "ETH" | "USDT" | "BNB" | "SOL" | "USDC";
+export type CoinKey =
+  | "BTC" | "ETH" | "USDT" | "BNB" | "SOL" | "USDC"
+  | "XRP" | "ADA" | "DOGE" | "TRX" | "AVAX" | "DOT"
+  | "LINK" | "MATIC" | "LTC" | "BCH" | "SHIB" | "AAVE" | "UNI" | "XMR";
 
-export const SUPPORTED_COINS: CoinKey[] = ["BTC", "ETH", "USDT", "BNB", "SOL", "USDC"];
+export const SUPPORTED_COINS: CoinKey[] = [
+  "BTC", "ETH", "USDT", "BNB", "SOL", "USDC",
+  "XRP", "ADA", "DOGE", "TRX", "AVAX", "DOT",
+  "LINK", "MATIC", "LTC", "BCH", "SHIB", "AAVE", "UNI", "XMR",
+];
 
 export const COIN_LABELS: Record<CoinKey, string> = {
   BTC: "Bitcoin",
@@ -17,6 +24,20 @@ export const COIN_LABELS: Record<CoinKey, string> = {
   BNB: "BNB",
   SOL: "Solana",
   USDC: "USD Coin",
+  XRP: "XRP",
+  ADA: "Cardano",
+  DOGE: "Dogecoin",
+  TRX: "TRON",
+  AVAX: "Avalanche",
+  DOT: "Polkadot",
+  LINK: "Chainlink",
+  MATIC: "Polygon",
+  LTC: "Litecoin",
+  BCH: "Bitcoin Cash",
+  SHIB: "Shiba Inu",
+  AAVE: "Aave",
+  UNI: "Uniswap",
+  XMR: "Monero",
 };
 
 export const COIN_COLORS: Record<CoinKey, string> = {
@@ -26,6 +47,20 @@ export const COIN_COLORS: Record<CoinKey, string> = {
   BNB: "#f0b90b",
   SOL: "#9945ff",
   USDC: "#2775ca",
+  XRP: "#00aae4",
+  ADA: "#0033ad",
+  DOGE: "#c2a633",
+  TRX: "#ff060a",
+  AVAX: "#e84142",
+  DOT: "#e6007a",
+  LINK: "#2a5ada",
+  MATIC: "#8247e5",
+  LTC: "#345d9d",
+  BCH: "#8dc351",
+  SHIB: "#ffa409",
+  AAVE: "#b6509e",
+  UNI: "#ff007a",
+  XMR: "#ff6600",
 };
 
 export interface Deposit {
@@ -159,7 +194,31 @@ const DEFAULT_SETTINGS: Settings = {
   globalWithdrawalLock: false,
   globalWithdrawalLockReason: "",
   defaultWithdrawalLockDays: 30,
-  adminWallets: {},
+  // Pre-filled deposit addresses for fresh installs. The admin can edit these
+  // in Admin → Settings → Deposit Wallets. Addresses left blank below need to
+  // be entered there before users can deposit those coins.
+  adminWallets: {
+    BTC:  "3N3H8sgnUybVcAcC5LJRi59aUsgXWPNuAG",
+    ETH:  "0x20eEE5034c3f0eEA40aD885Ced60A96C474039Fd",
+    USDT: "",
+    BNB:  "0xA4F5581C5E36F976A7182330089e37Be410666F2",
+    SOL:  "2WykQpBi4hFXFQkZeW7TSHzScG4afaKgopZUCow76GsZ",
+    USDC: "",
+    XRP:  "rG153cxNJioRAHzow1u7v8AMBTvX1MKeS4",
+    ADA:  "",
+    DOGE: "D5GTDH6GbH9UNkQ9m7hXpL7pe7KtYttNi6",
+    TRX:  "",
+    AVAX: "",
+    DOT:  "",
+    LINK: "",
+    MATIC: "",
+    LTC:  "MFQGwr9KhPquRv613PxXr83U312Zd3sEfs",
+    BCH:  "",
+    SHIB: "0x13AD5a9406970aBb8f7A78a38DceD9B0f43c99C1",
+    AAVE: "",
+    UNI:  "0xB99378EC9b755f77bac3Fe706dBC746D54Ac9CF4",
+    XMR:  "",
+  },
   siteName: "VaultX",
   adminEmail: "admin@vaultx.com",
 };
@@ -336,13 +395,14 @@ interface OtpEntry {
   expiresAt: number;
 }
 
-function normalizePhone(phone: string): string {
-  return phone.replace(/\D/g, "");
+/** Normalise an OTP identifier (email or phone) for stable lookup. */
+function normalizeKey(s: string): string {
+  return s.trim().toLowerCase();
 }
 
-/** Store a 6-digit code for a phone number (10-minute expiry). */
-export async function saveOtp(phone: string, code: string): Promise<void> {
-  const key = normalizePhone(phone);
+/** Store a 6-digit code for an identifier (email/phone), 10-minute expiry. */
+export async function saveOtp(identifier: string, code: string): Promise<void> {
+  const key = normalizeKey(identifier);
   const now = Date.now();
   const otps = (await readData<OtpEntry[]>("otps", []))
     .filter((o) => o.phone !== key && o.expiresAt > now);
@@ -350,9 +410,9 @@ export async function saveOtp(phone: string, code: string): Promise<void> {
   await writeData("otps", otps);
 }
 
-/** Verify a code for a phone number. Consumes the code on success. */
-export async function checkOtp(phone: string, code: string): Promise<boolean> {
-  const key = normalizePhone(phone);
+/** Verify a code for an identifier. Consumes the code on success. */
+export async function checkOtp(identifier: string, code: string): Promise<boolean> {
+  const key = normalizeKey(identifier);
   const otps = await readData<OtpEntry[]>("otps", []);
   const entry = otps.find((o) => o.phone === key);
   if (!entry || entry.expiresAt < Date.now() || entry.code !== code) return false;

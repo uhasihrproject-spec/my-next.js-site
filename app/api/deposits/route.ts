@@ -5,6 +5,7 @@ import {
   updateUser,
   generateId,
   getSettings,
+  SUPPORTED_COINS,
   type CoinKey,
 } from "@/lib/db";
 
@@ -26,8 +27,7 @@ export async function POST(req: NextRequest) {
     }
 
     const settings = await getSettings();
-    const supportedCoins = ["BTC", "ETH", "USDT", "BNB", "SOL", "USDC"];
-    if (!supportedCoins.includes(coin)) {
+    if (!SUPPORTED_COINS.includes(coin as CoinKey)) {
       return NextResponse.json({ error: "Unsupported coin" }, { status: 400 });
     }
 

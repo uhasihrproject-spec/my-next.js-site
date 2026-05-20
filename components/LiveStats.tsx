@@ -12,7 +12,16 @@ interface Coin {
   image: string;
 }
 
-const COINS = ["bitcoin", "ethereum", "binancecoin", "solana"];
+const COINS = [
+  "bitcoin",
+  "ethereum",
+  "tether",
+  "binancecoin",
+  "solana",
+  "usd-coin",
+  "ripple",
+  "cardano",
+];
 
 export default function LiveStats() {
   const [coins, setCoins] = useState<Coin[]>([]);
@@ -26,7 +35,7 @@ export default function LiveStats() {
       const res = await fetch(
         `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${COINS.join(
           ","
-        )}&order=market_cap_desc&per_page=4&page=1&sparkline=false`
+        )}&order=market_cap_desc&per_page=20&page=1&sparkline=false`
       );
       const data: Coin[] = await res.json();
       setCoins(data);
@@ -73,7 +82,7 @@ export default function LiveStats() {
         {error && <p className="text-center text-red-500">Failed to fetch data. Try again later.</p>}
 
         {!loading && !error && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-5">
             {coins.map((coin) => (
               <motion.div
                 key={coin.id}

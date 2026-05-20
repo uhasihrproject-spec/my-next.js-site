@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 
 const STEPS = [
   { n: "01", title: "Create account",       tag: "Free" },
-  { n: "02", title: "Send your crypto",     tag: "6 coins supported" },
+  { n: "02", title: "Send your crypto",     tag: "20 coins supported" },
   { n: "03", title: "We grow it",           tag: "Up to 18% APY" },
   { n: "04", title: "Withdraw anytime",     tag: "After lock-up" },
 ];

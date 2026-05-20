@@ -53,8 +53,7 @@ export default function ForgotPasswordPage() {
   const [password, setPassword] = useState("");
   const [show, setShow] = useState(false);
   const [devCode, setDevCode] = useState("");
-  const [phoneHint, setPhoneHint] = useState("");
-  const [smsSent, setSmsSent] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -69,8 +68,7 @@ export default function ForgotPasswordPage() {
       const d = await r.json();
       if (!r.ok) { setError(d.error || "Couldn't start the reset"); return; }
       setDevCode(d.devCode || "");
-      setSmsSent(!!d.sms);
-      setPhoneHint(d.phoneHint || "");
+      setEmailSent(!!d.sent);
       setStep("verify");
     } catch { setError("Network error. Please try again."); }
     finally { setBusy(false); }
@@ -107,7 +105,7 @@ export default function ForgotPasswordPage() {
         <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-400/[0.05] border border-emerald-400/15 mb-6">
           <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
           <p className="text-[11px] font-light text-emerald-300/80">
-            Identity-verified reset · a code is sent to your registered phone
+            Identity-verified reset · a code is emailed to your account address
           </p>
         </div>
 
@@ -127,7 +125,7 @@ export default function ForgotPasswordPage() {
               </div>
               <h1 className="text-[22px] font-light tracking-tight text-white mb-1.5">Reset your password</h1>
               <p className="text-[13px] font-light text-zinc-500 mb-6">
-                Enter your account email. We&apos;ll verify it&apos;s you with a one-time code sent to your registered phone.
+                Enter your account email. We&apos;ll send a one-time verification code to that address.
               </p>
               <div className="relative mb-4">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-600" />
@@ -151,22 +149,22 @@ export default function ForgotPasswordPage() {
               </div>
               <h1 className="text-[22px] font-light tracking-tight text-white mb-1.5">Verify &amp; set new password</h1>
               <p className="text-[13px] font-light text-zinc-500 mb-5">
-                Enter the 6-digit code sent to <span className="text-zinc-300">{phoneHint}</span>.
+                Enter the 6-digit code sent to <span className="text-zinc-300">{email}</span>. Check your inbox (and spam).
               </p>
 
               <CodeBoxes value={code} onChange={setCode} />
 
-              {smsSent && (
+              {emailSent && (
                 <div className="mt-4 flex items-center gap-2 px-3 py-2.5 rounded-lg bg-emerald-400/[0.06] border border-emerald-400/15">
                   <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                  <p className="text-[11px] font-light text-emerald-300/80">Code texted to your phone.</p>
+                  <p className="text-[11px] font-light text-emerald-300/80">Reset code emailed — it may take a few seconds.</p>
                 </div>
               )}
               {devCode && (
                 <div className="mt-4 flex items-start gap-2 px-3 py-2.5 rounded-lg bg-amber-400/[0.06] border border-amber-400/15">
                   <AlertCircle className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
                   <p className="text-[11px] font-light text-amber-300/80 leading-relaxed">
-                    Free SMS limit reached — demo mode: your code is{" "}
+                    We couldn&apos;t send the email — use this code to continue:{" "}
                     <span className="font-mono font-normal text-amber-200">{devCode}</span>.
                   </p>
                 </div>

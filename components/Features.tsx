@@ -30,7 +30,7 @@ const benefits = [
   "Per-account custom lock-up periods",
   "Global withdrawal lock for protection",
   "Admin-managed deposit confirmation",
-  "BTC, ETH, USDT, BNB, SOL, USDC",
+  "20 supported assets including BTC, ETH & SOL",
   "Full transaction history on your dashboard",
 ];
 

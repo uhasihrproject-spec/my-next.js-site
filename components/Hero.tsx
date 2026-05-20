@@ -94,7 +94,7 @@ export default function Hero() {
               transition={{ duration: 0.8, delay: 0.55 }}
               className="mt-14 pt-8 border-t border-white/[0.05] flex gap-10"
             >
-              {[["18%", "Max APY"], ["6", "Coins"], ["$47M+", "Managed"]].map(([v, l]) => (
+              {[["18%", "Max APY"], ["20", "Coins"], ["$47M+", "Managed"]].map(([v, l]) => (
                 <div key={l}>
                   <p className="text-xl font-light text-white">{v}</p>
                   <p className="text-[11px] font-light text-zinc-600 mt-0.5">{l}</p>

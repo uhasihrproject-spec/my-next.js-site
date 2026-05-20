@@ -43,8 +43,8 @@ export default function Footer() {
             {
               head: "Legal",
               links: [
-                { href: "#", label: "Privacy" },
-                { href: "#", label: "Terms" },
+                { href: "/privacy", label: "Privacy" },
+                { href: "/terms", label: "Terms" },
               ],
             },
           ].map((col) => (

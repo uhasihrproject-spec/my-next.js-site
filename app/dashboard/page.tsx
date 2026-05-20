@@ -12,22 +12,41 @@ import {
   X, Bell, RefreshCw, Sparkles, KeyRound, Fingerprint, Mail,
   BadgeCheck, Calculator, Newspaper, ArrowUpDown, ExternalLink,
   ScanFace, Download, Receipt as ReceiptIcon, Eye, EyeOff,
+  Sun, Moon, Monitor, Palette, Check,
 } from "lucide-react";
 import type { CoinKey } from "@/lib/db";
 import ChatWidget from "@/components/ChatWidget";
+import { useTheme, type ThemeChoice } from "@/components/ThemeProvider";
 
 /* ─── Constants ─── */
-const COINS: CoinKey[] = ["BTC", "ETH", "USDT", "BNB", "SOL", "USDC"];
+const COINS: CoinKey[] = [
+  "BTC", "ETH", "USDT", "BNB", "SOL", "USDC",
+  "XRP", "ADA", "DOGE", "TRX", "AVAX", "DOT",
+  "LINK", "MATIC", "LTC", "BCH", "SHIB", "AAVE", "UNI", "XMR",
+];
 const COIN_COLOR: Record<CoinKey, string> = {
   BTC: "#f7931a", ETH: "#627eea", USDT: "#26a17b",
   BNB: "#f0b90b", SOL: "#9945ff", USDC: "#2775ca",
+  XRP: "#00aae4", ADA: "#0033ad", DOGE: "#c2a633",
+  TRX: "#ff060a", AVAX: "#e84142", DOT: "#e6007a",
+  LINK: "#2a5ada", MATIC: "#8247e5", LTC: "#345d9d",
+  BCH: "#8dc351", SHIB: "#ffa409", AAVE: "#b6509e",
+  UNI: "#ff007a", XMR: "#ff6600",
 };
 const COIN_NAME: Record<CoinKey, string> = {
   BTC: "Bitcoin", ETH: "Ethereum", USDT: "Tether",
   BNB: "BNB Chain", SOL: "Solana", USDC: "USD Coin",
+  XRP: "XRP", ADA: "Cardano", DOGE: "Dogecoin",
+  TRX: "TRON", AVAX: "Avalanche", DOT: "Polkadot",
+  LINK: "Chainlink", MATIC: "Polygon", LTC: "Litecoin",
+  BCH: "Bitcoin Cash", SHIB: "Shiba Inu", AAVE: "Aave",
+  UNI: "Uniswap", XMR: "Monero",
 };
 const COIN_SYMBOL: Record<CoinKey, string> = {
   BTC: "₿", ETH: "Ξ", USDT: "₮", BNB: "B", SOL: "◎", USDC: "$",
+  XRP: "X", ADA: "₳", DOGE: "Ð", TRX: "T", AVAX: "A", DOT: "●",
+  LINK: "L", MATIC: "M", LTC: "Ł", BCH: "C", SHIB: "S",
+  AAVE: "ⓐ", UNI: "U", XMR: "ɱ",
 };
 
 type Tab = "portfolio" | "markets" | "news" | "activity";
@@ -260,6 +279,8 @@ function BalanceStack({ user, activeCoins, locked, hidden, onToggleHidden }: {
   user: UserData; activeCoins: CoinKey[]; locked: boolean;
   hidden: boolean; onToggleHidden: () => void;
 }) {
+  const { resolved } = useTheme();
+  const isLight = resolved === "light";
   const n = activeCoins.length;
   const [index, setIndex] = useState(0);
   useEffect(() => { if (index >= n) setIndex(0); }, [n, index]);
@@ -269,43 +290,81 @@ function BalanceStack({ user, activeCoins, locked, hidden, onToggleHidden }: {
   const rawId = (user.id.replace(/[^a-zA-Z0-9]/g, "").toUpperCase() + "00000000").slice(-8);
   const vaultNo = `VX-${rawId.slice(0, 4)}-${rawId.slice(4)}`;
 
+  // Theme-aware card surface: dark navy in dark mode, soft silver-blue in light mode.
+  const emptyBg = isLight
+    ? "linear-gradient(150deg, #eef2fa 0%, #dde4f0 48%, #c8d2e3 100%)"
+    : "linear-gradient(150deg, #243a72 0%, #15214a 48%, #0b1024 100%)";
+  const emptyBase = isLight ? "#dde4f0" : "#0a0e1c";
+  const coinBg = (c: string) => isLight
+    ? `linear-gradient(150deg, ${c}33 0%, #e3e9f4 38%, #d2dae8 74%, #c5cfe0 100%)`
+    : `linear-gradient(150deg, ${c}40 0%, #17244e 38%, #0c1330 74%, #0a0e1c 100%)`;
+  const coinBase = isLight ? "#c5cfe0" : "#0a0e1c";
+  const blueGlow = isLight ? "rgba(59,130,246,0.10)" : "rgba(59,130,246,0.22)";
+  const coinGlowAlpha = isLight ? "22" : "3d";
+  // Behind-card "shadow" tint: navy in dark, soft slate in light.
+  const haloBg = isLight ? "#cfd6e4" : "#101733";
+  // Scrim that dims cards behind the front one — black in dark, slate-tinted in light.
+  const scrimBg = isLight ? "rgba(40,55,90,0.55)" : "#000";
+  // Card border in each theme.
+  const cardBorder = isLight ? "rgba(40,55,90,0.10)" : "rgba(255,255,255,0.10)";
+  // Inner chips ("Secured", eye toggle).
+  const chipBg = isLight ? "rgba(40,55,90,0.06)" : "rgba(255,255,255,0.07)";
+  const chipBd = isLight ? "rgba(40,55,90,0.12)" : "rgba(255,255,255,0.10)";
+  // Text colors inside the card.
+  const txMain      = isLight ? "#0a1228" : "#ffffff";
+  const txSoft      = isLight ? "#3b5a8a" : "#dbeafe";
+  const txMuted     = isLight ? "rgba(40,55,90,0.55)" : "rgba(219,234,254,0.45)";
+  const txWhisper   = isLight ? "rgba(40,55,90,0.40)" : "rgba(219,234,254,0.40)";
+
   /* ── No assets — single default card ── */
   if (n === 0) {
     return (
       <div className="relative mb-7">
-        <div className="absolute left-1/2 -translate-x-1/2 -bottom-3 w-[90%] h-full rounded-2xl bg-[#101733] border border-white/[0.05]" />
+        <div
+          className="absolute left-1/2 -translate-x-1/2 -bottom-3 w-[90%] h-full rounded-2xl"
+          style={{ backgroundColor: haloBg, border: `1px solid ${cardBorder}` }}
+        />
         <motion.div
           initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
           transition={{ type: "spring", damping: 22, stiffness: 190 }}
-          className="relative rounded-2xl p-5 overflow-hidden border border-white/[0.1]"
-          style={{ backgroundColor: "#0a0e1c", backgroundImage: "linear-gradient(150deg, #243a72 0%, #15214a 48%, #0b1024 100%)" }}
+          className="relative rounded-2xl p-5 overflow-hidden"
+          style={{
+            backgroundColor: emptyBase,
+            backgroundImage: emptyBg,
+            border: `1px solid ${cardBorder}`,
+            boxShadow: isLight
+              ? "0 12px 32px -10px rgba(50,70,120,0.22), 0 2px 4px rgba(50,70,120,0.08)"
+              : "0 10px 40px -12px rgba(15,30,80,0.45)",
+            color: txMain,
+          }}
         >
           <div className="absolute -top-16 -right-12 w-48 h-48 rounded-full pointer-events-none"
-            style={{ background: "radial-gradient(circle, rgba(59,130,246,0.28) 0%, transparent 70%)" }} />
+            style={{ background: `radial-gradient(circle, ${blueGlow} 0%, transparent 70%)` }} />
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-7">
               <div className="flex items-center gap-2">
                 <div className="w-5 h-5 rounded-md bg-blue-500 flex items-center justify-center">
                   <TrendingUp className="w-2.5 h-2.5 text-white" />
                 </div>
-                <span className="text-[12px] font-normal text-white tracking-wide">VaultX</span>
+                <span className="text-[12px] font-normal tracking-wide" style={{ color: txMain }}>VaultX</span>
               </div>
-              <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-white/[0.07] border border-white/[0.1]">
-                <Lock className="w-2.5 h-2.5 text-blue-200/70" />
-                <span className="text-[9px] font-light text-blue-100/70 tracking-wide">Secured</span>
+              <div className="flex items-center gap-1.5 px-2 py-1 rounded-md"
+                style={{ backgroundColor: chipBg, border: `1px solid ${chipBd}` }}>
+                <Lock className="w-2.5 h-2.5" style={{ color: txSoft }} />
+                <span className="text-[9px] font-light tracking-wide" style={{ color: txSoft }}>Secured</span>
               </div>
             </div>
-            <p className="text-[10px] font-normal tracking-[0.18em] text-blue-300/60 uppercase mb-1.5">Portfolio</p>
-            <p className="text-[28px] font-light text-white font-mono leading-none mb-2">0.00000</p>
-            <p className="text-[11px] font-light text-blue-100/45 mb-7">No assets yet — make your first deposit to begin.</p>
+            <p className="text-[10px] font-normal tracking-[0.18em] uppercase mb-1.5" style={{ color: txMuted }}>Portfolio</p>
+            <p className="text-[28px] font-light font-mono leading-none mb-2" style={{ color: txMain }}>0.00000</p>
+            <p className="text-[11px] font-light mb-7" style={{ color: txWhisper }}>No assets yet — make your first deposit to begin.</p>
             <div className="flex items-end justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[8px] font-normal tracking-[0.16em] text-blue-200/40 uppercase mb-1">Account holder</p>
-                <p className="text-[11px] font-light text-zinc-200 tracking-wide uppercase truncate">{user.name}</p>
+                <p className="text-[8px] font-normal tracking-[0.16em] uppercase mb-1" style={{ color: txWhisper }}>Account holder</p>
+                <p className="text-[11px] font-light tracking-wide uppercase truncate" style={{ color: txMain }}>{user.name}</p>
               </div>
               <div className="text-right shrink-0">
-                <p className="text-[8px] font-normal tracking-[0.16em] text-blue-200/40 uppercase mb-1">Vault number</p>
-                <p className="text-[11px] font-mono text-blue-200/90 tracking-wider">{vaultNo}</p>
+                <p className="text-[8px] font-normal tracking-[0.16em] uppercase mb-1" style={{ color: txWhisper }}>Vault number</p>
+                <p className="text-[11px] font-mono tracking-wider" style={{ color: txSoft }}>{vaultNo}</p>
               </div>
             </div>
           </div>
@@ -319,6 +378,11 @@ function BalanceStack({ user, activeCoins, locked, hidden, onToggleHidden }: {
     .map((coin, i) => ({ coin, pos: (i - safeIndex + n) % n }))
     .filter((c) => c.pos <= 2)
     .sort((a, b) => b.pos - a.pos);
+
+  const emeraldClr = isLight ? "#0f8f60" : "#34d399";
+  const emeraldSoft = isLight ? "rgba(15,143,96,0.55)" : "rgba(52,211,153,0.60)";
+  const dividerCol = isLight ? "rgba(40,55,90,0.10)" : "rgba(255,255,255,0.07)";
+  const dotInactive = isLight ? "rgba(40,55,90,0.20)" : "rgba(255,255,255,0.20)";
 
   return (
     <div className="relative mb-7" style={{ height: 270 }}>
@@ -340,23 +404,28 @@ function BalanceStack({ user, activeCoins, locked, hidden, onToggleHidden }: {
             transition={{ type: "spring", damping: 26, stiffness: 240 }}
             style={{
               zIndex: 10 - pos,
-              backgroundColor: "#0a0e1c",
-              // Opaque blue card, with the coin's own colour woven into the top corner.
-              backgroundImage: `linear-gradient(150deg, ${c}40 0%, #17244e 38%, #0c1330 74%, #0a0e1c 100%)`,
+              backgroundColor: coinBase,
+              backgroundImage: coinBg(c),
+              border: `1px solid ${cardBorder}`,
+              boxShadow: isLight
+                ? "0 12px 32px -10px rgba(50,70,120,0.22), 0 2px 4px rgba(50,70,120,0.08)"
+                : "0 10px 40px -12px rgba(15,30,80,0.45)",
+              color: txMain,
             }}
-            className={`absolute inset-x-0 top-0 h-[240px] rounded-2xl p-5 overflow-hidden border border-white/[0.1] ${
+            className={`absolute inset-x-0 top-0 h-[240px] rounded-2xl p-5 overflow-hidden ${
               isFront && n > 1 ? "cursor-grab active:cursor-grabbing" : ""
             }`}
           >
             {/* coin-colour glow */}
             <div className="absolute -top-16 -right-12 w-52 h-52 rounded-full pointer-events-none"
-              style={{ background: `radial-gradient(circle, ${c}3d 0%, transparent 70%)` }} />
+              style={{ background: `radial-gradient(circle, ${c}${coinGlowAlpha} 0%, transparent 70%)` }} />
             {/* blue glow */}
             <div className="absolute -bottom-20 -left-14 w-52 h-52 rounded-full pointer-events-none"
-              style={{ background: "radial-gradient(circle, rgba(59,130,246,0.22) 0%, transparent 70%)" }} />
-            {/* Depth scrim — dims cards behind the front one (kept fully opaque). */}
+              style={{ background: `radial-gradient(circle, ${blueGlow} 0%, transparent 70%)` }} />
+            {/* Depth scrim — dims cards behind the front one. */}
             <motion.div
-              className="absolute inset-0 z-20 bg-black pointer-events-none"
+              className="absolute inset-0 z-20 pointer-events-none"
+              style={{ backgroundColor: scrimBg }}
               animate={{ opacity: pos === 0 ? 0 : pos === 1 ? 0.42 : 0.62 }}
               transition={{ type: "spring", damping: 26, stiffness: 240 }}
             />
@@ -368,17 +437,19 @@ function BalanceStack({ user, activeCoins, locked, hidden, onToggleHidden }: {
                   <div className="w-5 h-5 rounded-md bg-blue-500 flex items-center justify-center">
                     <TrendingUp className="w-2.5 h-2.5 text-white" />
                   </div>
-                  <span className="text-[12px] font-normal text-white tracking-wide">VaultX</span>
+                  <span className="text-[12px] font-normal tracking-wide" style={{ color: txMain }}>VaultX</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <button onClick={onToggleHidden} onPointerDown={(e) => e.stopPropagation()}
                     title={hidden ? "Show balance" : "Hide balance"}
-                    className="w-7 h-7 rounded-md bg-white/[0.07] border border-white/[0.1] flex items-center justify-center text-blue-100/70 hover:text-white transition-colors">
+                    className="w-7 h-7 rounded-md flex items-center justify-center transition-colors"
+                    style={{ backgroundColor: chipBg, border: `1px solid ${chipBd}`, color: txSoft }}>
                     {hidden ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                   </button>
-                  <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-white/[0.07] border border-white/[0.1]">
-                    <Lock className="w-2.5 h-2.5 text-blue-200/70" />
-                    <span className="text-[9px] font-light text-blue-100/70 tracking-wide">{locked ? "Locked" : "Secured"}</span>
+                  <div className="flex items-center gap-1.5 px-2 py-1 rounded-md"
+                    style={{ backgroundColor: chipBg, border: `1px solid ${chipBd}` }}>
+                    <Lock className="w-2.5 h-2.5" style={{ color: txSoft }} />
+                    <span className="text-[9px] font-light tracking-wide" style={{ color: txSoft }}>{locked ? "Locked" : "Secured"}</span>
                   </div>
                 </div>
               </div>
@@ -388,40 +459,42 @@ function BalanceStack({ user, activeCoins, locked, hidden, onToggleHidden }: {
                 <CoinGlyph coin={coin} size={30} />
                 <div>
                   <p className="text-[11px] font-normal tracking-wider uppercase" style={{ color: c }}>{coin}</p>
-                  <p className="text-[10px] font-light text-blue-100/50 leading-none mt-0.5">{COIN_NAME[coin]}</p>
+                  <p className="text-[10px] font-light leading-none mt-0.5" style={{ color: txWhisper }}>{COIN_NAME[coin]}</p>
                 </div>
               </div>
-              <p className="text-[27px] font-light text-white font-mono leading-none">
+              <p className="text-[27px] font-light font-mono leading-none" style={{ color: txMain }}>
                 {hidden ? "••••••" : bal.toFixed(6)}
               </p>
               <div className="flex items-center gap-2 mt-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                <p className="text-[11px] font-light text-emerald-400 font-mono">
+                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: emeraldClr }} />
+                <p className="text-[11px] font-light font-mono" style={{ color: emeraldClr }}>
                   {hidden ? "••••" : `+${earn.toFixed(6)}`}
                 </p>
-                {pct && !hidden && <span className="text-[10px] font-light text-emerald-400/60">+{pct}%</span>}
+                {pct && !hidden && <span className="text-[10px] font-light" style={{ color: emeraldSoft }}>+{pct}%</span>}
               </div>
 
               {/* Footer — account holder + full vault number */}
               <div className="mt-auto">
                 <div className="flex items-end justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-[8px] font-normal tracking-[0.16em] text-blue-200/40 uppercase mb-1">Account holder</p>
-                    <p className="text-[11px] font-light text-zinc-100 tracking-wide uppercase truncate">{user.name}</p>
+                    <p className="text-[8px] font-normal tracking-[0.16em] uppercase mb-1" style={{ color: txWhisper }}>Account holder</p>
+                    <p className="text-[11px] font-light tracking-wide uppercase truncate" style={{ color: txMain }}>{user.name}</p>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="text-[8px] font-normal tracking-[0.16em] text-blue-200/40 uppercase mb-1">Vault number</p>
-                    <p className="text-[11px] font-mono text-blue-200/90 tracking-wider">{vaultNo}</p>
+                    <p className="text-[8px] font-normal tracking-[0.16em] uppercase mb-1" style={{ color: txWhisper }}>Vault number</p>
+                    <p className="text-[11px] font-mono tracking-wider" style={{ color: txSoft }}>{vaultNo}</p>
                   </div>
                 </div>
                 {n > 1 && (
-                  <div className="flex items-center justify-center gap-2 mt-3 pt-2.5 border-t border-white/[0.07]">
+                  <div className="flex items-center justify-center gap-2 mt-3 pt-2.5"
+                    style={{ borderTop: `1px solid ${dividerCol}` }}>
                     <div className="flex gap-1">
                       {activeCoins.map((_, di) => (
-                        <span key={di} className={`h-1 rounded-full transition-all ${di === safeIndex ? "w-3.5 bg-blue-400" : "w-1 bg-white/20"}`} />
+                        <span key={di} className="h-1 rounded-full transition-all"
+                          style={{ width: di === safeIndex ? 14 : 4, backgroundColor: di === safeIndex ? "#60a5fa" : dotInactive }} />
                       ))}
                     </div>
-                    <span className="text-[8.5px] font-light text-blue-100/40 tracking-wide">↑ swipe · {safeIndex + 1}/{n}</span>
+                    <span className="text-[8.5px] font-light tracking-wide" style={{ color: txWhisper }}>↑ swipe · {safeIndex + 1}/{n}</span>
                   </div>
                 )}
               </div>
@@ -1481,6 +1554,50 @@ function SettingRow({ Icon, label, desc, control }: {
   );
 }
 
+function ThemePicker() {
+  const { theme, setTheme, resolved } = useTheme();
+  const opts: { value: ThemeChoice; label: string; Icon: typeof Sun }[] = [
+    { value: "light",  label: "Light",  Icon: Sun },
+    { value: "dark",   label: "Dark",   Icon: Moon },
+    { value: "system", label: "System", Icon: Monitor },
+  ];
+  return (
+    <div className="bg-[var(--surface-1)] border border-[var(--line-1)] rounded-xl p-3 mt-1">
+      <div className="flex items-center gap-3 mb-3">
+        <div className="w-8 h-8 rounded-lg bg-white/[0.04] border border-white/[0.06] flex items-center justify-center shrink-0">
+          <Palette className="w-3.5 h-3.5 text-zinc-400" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[13px] font-normal text-zinc-200">Appearance</p>
+          <p className="text-[11px] font-light text-zinc-600 mt-0.5">
+            Currently {resolved === "light" ? "light" : "dark"}{theme === "system" ? " (system)" : ""}
+          </p>
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        {opts.map(({ value, label, Icon }) => {
+          const active = theme === value;
+          return (
+            <button
+              key={value}
+              onClick={() => setTheme(value)}
+              className={`relative flex flex-col items-center gap-1.5 py-3 rounded-lg border text-[11.5px] font-light transition-all ${
+                active
+                  ? "border-blue-500/40 bg-blue-500/[0.08] text-blue-300"
+                  : "border-[var(--line-1)] hover:border-[var(--line-2)] text-zinc-400"
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+              {label}
+              {active && <Check className="absolute top-1.5 right-1.5 w-3 h-3 text-blue-400" />}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function SettingsOverlay({ user, onClose, onLogout, balanceHidden, onToggleBalance }: {
   user: UserData; onClose: () => void; onLogout: () => void;
   balanceHidden: boolean; onToggleBalance: () => void;
@@ -1654,6 +1771,9 @@ function SettingsOverlay({ user, onClose, onLogout, balanceHidden, onToggleBalan
             <SettingRow Icon={Bell} label="Login alerts" desc="Notify on a new device sign-in"
               control={<SettingToggle on={loginAlerts} set={persist("vaultx_pref_login", setLoginAlerts)} />} />
           </div>
+
+          <p className="text-[10px] font-normal tracking-[0.16em] text-zinc-600 uppercase mt-5 mb-1">Appearance</p>
+          <ThemePicker />
 
           <button onClick={onLogout}
             className="w-full mt-7 flex items-center justify-center gap-2 py-3 bg-red-500/[0.07] border border-red-500/20 text-red-400 text-[13px] font-normal rounded-xl hover:bg-red-500/[0.12] transition-colors active:scale-[0.98]">
@@ -2042,6 +2162,11 @@ function GateScreen({ user, hasPin, onUnlock }: {
 const CG_ID: Record<CoinKey, string> = {
   BTC: "bitcoin", ETH: "ethereum", USDT: "tether",
   BNB: "binancecoin", SOL: "solana", USDC: "usd-coin",
+  XRP: "ripple", ADA: "cardano", DOGE: "dogecoin",
+  TRX: "tron", AVAX: "avalanche-2", DOT: "polkadot",
+  LINK: "chainlink", MATIC: "matic-network", LTC: "litecoin",
+  BCH: "bitcoin-cash", SHIB: "shiba-inu", AAVE: "aave",
+  UNI: "uniswap", XMR: "monero",
 };
 type CalcUnit = CoinKey | "USD";
 

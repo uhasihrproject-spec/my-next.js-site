@@ -6,7 +6,7 @@ import { Plus } from "lucide-react";
 
 const FAQS = [
   { q: "How does VaultX work?",         a: "Deposit crypto to our wallet, submit your transaction hash, and our trading team manages your funds. Earnings are credited daily. Withdraw anytime after your lock-up ends." },
-  { q: "Which coins can I deposit?",    a: "Bitcoin (BTC), Ethereum (ETH), Tether (USDT), BNB, Solana (SOL), and USD Coin (USDC). Wallet addresses are shown in your dashboard after signup." },
+  { q: "Which coins can I deposit?",    a: "Twenty assets including BTC, ETH, USDT, BNB, SOL, USDC, XRP, ADA, DOGE, TRX, AVAX, DOT, LINK, MATIC, LTC, BCH, SHIB, AAVE, UNI and XMR. Wallet addresses are shown in your dashboard after signup." },
   { q: "How long is the lock-up?",      a: "Default is 30 days from your first confirmed deposit. Growth and Premium tiers offer flexible options. Admins can set custom periods per account." },
   { q: "How do I withdraw?",            a: "Go to the Withdraw tab on your dashboard, enter the amount and your wallet address, and submit. Processed within 24–48 hours." },
   { q: "How are earnings calculated?",  a: "Our trading team credits earnings directly to your account. You can see principal and earned interest as separate line items at all times." },

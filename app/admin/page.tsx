@@ -12,12 +12,22 @@ import {
   ChevronRight, Lock, Unlock, ArrowRight, Trash2,
 } from "lucide-react";
 import type { CoinKey } from "@/lib/db";
+import ThemeToggle from "@/components/ThemeToggle";
 
 /* ─── Constants ─── */
-const COINS: CoinKey[] = ["BTC", "ETH", "USDT", "BNB", "SOL", "USDC"];
+const COINS: CoinKey[] = [
+  "BTC", "ETH", "USDT", "BNB", "SOL", "USDC",
+  "XRP", "ADA", "DOGE", "TRX", "AVAX", "DOT",
+  "LINK", "MATIC", "LTC", "BCH", "SHIB", "AAVE", "UNI", "XMR",
+];
 const COIN_COLORS: Record<CoinKey, string> = {
   BTC: "#f7931a", ETH: "#627eea", USDT: "#26a17b",
   BNB: "#f0b90b", SOL: "#9945ff", USDC: "#2775ca",
+  XRP: "#00aae4", ADA: "#0033ad", DOGE: "#c2a633",
+  TRX: "#ff060a", AVAX: "#e84142", DOT: "#e6007a",
+  LINK: "#2a5ada", MATIC: "#8247e5", LTC: "#345d9d",
+  BCH: "#8dc351", SHIB: "#ffa409", AAVE: "#b6509e",
+  UNI: "#ff007a", XMR: "#ff6600",
 };
 
 type Tab = "overview" | "users" | "deposits" | "withdrawals" | "messages" | "settings";
@@ -851,7 +861,11 @@ export default function AdminPage() {
             </button>
           ))}
         </nav>
-        <div className="p-3 border-t border-white/[0.05]">
+        <div className="p-3 border-t border-white/[0.05] space-y-2">
+          <div className="flex items-center justify-between px-1">
+            <span className="text-[10px] font-light tracking-widest text-zinc-600 uppercase">Theme</span>
+            <ThemeToggle compact />
+          </div>
           <button onClick={logout} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-light text-zinc-600 hover:text-red-400 hover:bg-red-500/[0.05] transition-all">
             <LogOut className="w-[18px] h-[18px]" /> Sign out
           </button>
