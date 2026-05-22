@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserByEmail, updateUser, hashPassword, saveOtp, checkOtp } from "@/lib/db";
 import { sendEmail, emailLayout } from "@/lib/notify";
+import { verifyRecaptcha } from "@/lib/recaptcha";
 
 /**
  * Password reset, email-verified.
@@ -9,7 +10,7 @@ import { sendEmail, emailLayout } from "@/lib/notify";
  */
 export async function POST(req: NextRequest) {
   try {
-    const { action, email, code, password } = await req.json();
+    const { action, email, code, password, recaptchaToken } = await req.json();
     if (!email || typeof email !== "string") {
       return NextResponse.json({ error: "Email is required" }, { status: 400 });
     }
@@ -17,6 +18,10 @@ export async function POST(req: NextRequest) {
     const user = await getUserByEmail(addr);
 
     if (action === "request") {
+      const captcha = await verifyRecaptcha(recaptchaToken);
+      if (!captcha.ok) {
+        return NextResponse.json({ error: captcha.error || "reCAPTCHA failed" }, { status: 400 });
+      }
       if (!user) {
         return NextResponse.json(
           { error: "No account was found for that email." },

@@ -15,6 +15,7 @@ export default function ThemeToggle({ compact = false }: { compact?: boolean }) 
   const { theme, resolved, setTheme } = useTheme();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -25,11 +26,29 @@ export default function ThemeToggle({ compact = false }: { compact?: boolean }) 
     return () => document.removeEventListener("mousedown", onDown);
   }, [open]);
 
+  // Geometric centre of the button — used as the iris origin so the new
+  // theme appears to "wash in" from the toggle.
+  function originFromButton() {
+    const el = btnRef.current;
+    if (!el) return undefined;
+    const r = el.getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  }
+
+  function pick(value: ThemeChoice, e?: React.MouseEvent) {
+    const origin = e
+      ? { x: e.clientX, y: e.clientY }
+      : originFromButton();
+    setTheme(value, origin);
+    setOpen(false);
+  }
+
   const ActiveIcon = resolved === "light" ? Sun : Moon;
 
   return (
     <div ref={ref} className="relative">
       <button
+        ref={btnRef}
         onClick={() => setOpen((v) => !v)}
         aria-label="Toggle theme"
         className={`flex items-center justify-center rounded-lg border border-[var(--line-1)] hover:border-[var(--line-2)] bg-[var(--surface-1)] transition-colors ${
@@ -65,7 +84,7 @@ export default function ThemeToggle({ compact = false }: { compact?: boolean }) 
                 return (
                   <button
                     key={value}
-                    onClick={() => { setTheme(value); setOpen(false); }}
+                    onClick={(e) => pick(value, e)}
                     className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[12.5px] font-light text-left transition-colors ${
                       active
                         ? "bg-blue-500/[0.12] text-blue-400"

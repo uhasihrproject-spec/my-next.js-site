@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import { useAuthUser } from "./useAuthUser";
 
 const CHIPS = [
   { label: "BTC", color: "#f7931a", val: "+18% APY" },
@@ -11,21 +11,10 @@ const CHIPS = [
 ];
 
 export default function Hero() {
-  const [user, setUser] = useState<{ name: string; role: string } | null>(null);
-  const [loaded, setLoaded] = useState(false);
-
-  useEffect(() => {
-    fetch("/api/auth/me")
-      .then((r) => r.json())
-      .then((d) => { setUser(d.user || null); setLoaded(true); })
-      .catch(() => setLoaded(true));
-  }, []);
+  const { user, loaded } = useAuthUser();
 
   return (
     <section className="relative min-h-screen bg-[#161618] flex items-center overflow-hidden pt-16">
-      {/* Subtle grid */}
-      <div className="pointer-events-none absolute inset-0 opacity-[0.018]"
-        style={{ backgroundImage: "linear-gradient(rgba(255,255,255,1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,1) 1px, transparent 1px)", backgroundSize: "64px 64px" }} />
       {/* Blue ambient glow */}
       <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-blue-600/[0.055] rounded-full blur-[180px]" />
 
@@ -153,7 +142,10 @@ export default function Hero() {
         </div>
       </div>
 
-      <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[#161618] to-transparent" />
+      <div
+        className="pointer-events-none absolute bottom-0 left-0 right-0 h-20"
+        style={{ background: "linear-gradient(to top, var(--surface-0), transparent)" }}
+      />
     </section>
   );
 }

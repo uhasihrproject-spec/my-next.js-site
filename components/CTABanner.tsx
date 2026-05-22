@@ -2,8 +2,13 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { useAuthUser } from "./useAuthUser";
 
 export default function CTABanner() {
+  const { user, loaded } = useAuthUser();
+  const signedIn = loaded && !!user;
+  const dashHref = user?.role === "admin" ? "/admin" : "/dashboard";
+
   return (
     <section className="relative bg-[#0e101a] py-40 px-6 overflow-hidden">
       {/* Ambient */}
@@ -33,8 +38,11 @@ export default function CTABanner() {
           transition={{ duration: 0.8, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
           className="text-[clamp(44px,8vw,100px)] font-light text-white tracking-tight leading-[1.0] mb-8"
         >
-          Your crypto<br />
-          <span className="text-blue-400">shouldn&apos;t idle.</span>
+          {signedIn ? (
+            <>Welcome back,<br /><span className="text-blue-400">{user!.name.split(" ")[0]}.</span></>
+          ) : (
+            <>Your crypto<br /><span className="text-blue-400">shouldn&apos;t idle.</span></>
+          )}
         </motion.h2>
 
         <motion.p
@@ -44,7 +52,7 @@ export default function CTABanner() {
           transition={{ duration: 0.6, delay: 0.28 }}
           className="text-[14px] font-light text-zinc-500 mb-10"
         >
-          Deposit. Earn. Withdraw.
+          {signedIn ? "Your vault is ready when you are." : "Deposit. Earn. Withdraw."}
         </motion.p>
 
         <motion.div
@@ -54,14 +62,29 @@ export default function CTABanner() {
           transition={{ duration: 0.5, delay: 0.36 }}
           className="flex flex-col sm:flex-row items-center justify-center gap-3"
         >
-          <Link href="/signup"
-            className="px-8 py-3.5 bg-white hover:bg-zinc-100 text-black text-[13px] font-normal rounded-xl transition-colors">
-            Open free account
-          </Link>
-          <Link href="/#faq"
-            className="px-8 py-3.5 border border-white/[0.08] hover:border-white/[0.14] text-zinc-500 hover:text-zinc-300 text-[13px] font-light rounded-xl transition-all">
-            Read FAQ
-          </Link>
+          {loaded && (signedIn ? (
+            <>
+              <Link href={dashHref}
+                className="px-8 py-3.5 bg-white hover:bg-zinc-100 text-black text-[13px] font-normal rounded-xl transition-colors">
+                Open {user!.role === "admin" ? "admin panel" : "dashboard"} →
+              </Link>
+              <Link href={user!.role === "admin" ? "/admin" : "/dashboard#deposit"}
+                className="px-8 py-3.5 border border-white/[0.08] hover:border-white/[0.14] text-zinc-500 hover:text-zinc-300 text-[13px] font-light rounded-xl transition-all">
+                {user!.role === "admin" ? "Manage users" : "Make a deposit"}
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link href="/signup"
+                className="px-8 py-3.5 bg-white hover:bg-zinc-100 text-black text-[13px] font-normal rounded-xl transition-colors">
+                Open free account
+              </Link>
+              <Link href="/#faq"
+                className="px-8 py-3.5 border border-white/[0.08] hover:border-white/[0.14] text-zinc-500 hover:text-zinc-300 text-[13px] font-light rounded-xl transition-all">
+                Read FAQ
+              </Link>
+            </>
+          ))}
         </motion.div>
       </div>
     </section>

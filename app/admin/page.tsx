@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import type { CoinKey } from "@/lib/db";
 import ThemeToggle from "@/components/ThemeToggle";
+import Logo from "@/components/Logo";
 
 /* ─── Constants ─── */
 const COINS: CoinKey[] = [
@@ -509,9 +510,7 @@ function AdminGate({ hasPin, onUnlock }: { hasPin: boolean; onUnlock: () => void
   return (
     <div className="fixed inset-0 z-[100] bg-[#161618] flex flex-col items-center justify-center px-6 py-10">
       <div className="flex items-center gap-2 mb-auto">
-        <div className="w-6 h-6 rounded-md bg-blue-500 flex items-center justify-center">
-          <Lock className="w-3 h-3 text-white" />
-        </div>
+        <Logo size={24} />
         <span className="font-normal text-white text-[14px]">VaultX Admin</span>
       </div>
       <div className="my-auto flex flex-col items-center">
@@ -827,14 +826,7 @@ export default function AdminPage() {
       <aside className="hidden md:flex flex-col w-56 shrink-0 bg-[#111113] border-r border-white/[0.05] h-screen sticky top-0">
         <div className="px-5 py-5 border-b border-white/[0.05]">
           <Link href="/" className="flex items-center gap-2 mb-4">
-            <div className="w-6 h-6 rounded-md bg-blue-500 flex items-center justify-center">
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                <rect x="0.5" y="0.5" width="4.5" height="4.5" rx="0.5" fill="white"/>
-                <rect x="7" y="0.5" width="4.5" height="4.5" rx="0.5" fill="white" opacity="0.5"/>
-                <rect x="0.5" y="7" width="4.5" height="4.5" rx="0.5" fill="white" opacity="0.5"/>
-                <rect x="7" y="7" width="4.5" height="4.5" rx="0.5" fill="white" opacity="0.25"/>
-              </svg>
-            </div>
+            <Logo size={24} />
             <span className="text-white font-normal text-[14px]">VaultX</span>
           </Link>
           <div className="flex items-center gap-2 px-2.5 py-1.5 bg-amber-400/[0.07] border border-amber-400/20 rounded-lg">

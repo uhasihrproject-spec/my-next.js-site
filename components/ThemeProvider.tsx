@@ -5,12 +5,16 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 export type ThemeChoice = "light" | "dark" | "system";
 type Resolved = "light" | "dark";
 
+export type Origin = { x: number; y: number };
+
 interface Ctx {
   theme: ThemeChoice;
   resolved: Resolved;
-  setTheme: (t: ThemeChoice) => void;
-  /** "to-light" | "to-dark" while the sky overlay is animating, else null. */
+  setTheme: (t: ThemeChoice, origin?: Origin) => void;
+  /** "to-light" | "to-dark" while the iris is animating, else null. */
   transitioning: "to-light" | "to-dark" | null;
+  /** Click origin in viewport pixels — where the iris should expand from. */
+  origin: Origin | null;
 }
 
 const ThemeCtx = createContext<Ctx | null>(null);
@@ -27,13 +31,15 @@ function apply(resolved: Resolved) {
   document.documentElement.style.colorScheme = resolved;
 }
 
-/** Total transition duration must match the overlay animation in ThemeTransition.tsx */
-const TRANSITION_MS = 1100;
+/** Total runtime of the iris reveal — long enough for the spinning logo
+ *  to read clearly. */
+const TRANSITION_MS = 1500;
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<ThemeChoice>("dark");
   const [resolved, setResolved] = useState<Resolved>("dark");
   const [transitioning, setTransitioning] = useState<"to-light" | "to-dark" | null>(null);
+  const [origin, setOrigin] = useState<Origin | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // hydrate from storage on mount
@@ -58,35 +64,40 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [theme]);
 
-  const animateTo = useCallback((next: Resolved) => {
+  const animateTo = useCallback((next: Resolved, ox?: number, oy?: number) => {
     if (next === resolved) return;
-    // Add a global class so every element fades color smoothly while the
-    // overlay plays. Stripped after the animation completes.
-    document.documentElement.classList.add("theme-transitioning");
+    // Default origin: top-right corner where the navbar toggle lives
+    const x = typeof ox === "number" ? ox : (typeof window !== "undefined" ? window.innerWidth - 60 : 0);
+    const y = typeof oy === "number" ? oy : 40;
+    setOrigin({ x, y });
+
     setTransitioning(next === "light" ? "to-light" : "to-dark");
-    // Switch the actual theme attribute mid-sweep so the underlying
-    // surfaces fade behind the overlay.
+
+    // Flip the theme immediately on the next frame so the page underneath
+    // the iris is already the destination theme. The disc just hides the
+    // moment of swap visually.
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
       apply(next);
       setResolved(next);
-    }, TRANSITION_MS * 0.32);
+    }, 16);
+
     setTimeout(() => {
       setTransitioning(null);
-      document.documentElement.classList.remove("theme-transitioning");
+      setOrigin(null);
     }, TRANSITION_MS);
   }, [resolved]);
 
-  const setTheme = useCallback((t: ThemeChoice) => {
+  const setTheme = useCallback((t: ThemeChoice, o?: Origin) => {
     localStorage.setItem(STORAGE_KEY, t);
     const next: Resolved = t === "system" ? systemPref() : t;
     setThemeState(t);
     if (next === resolved) return;
-    animateTo(next);
+    animateTo(next, o?.x, o?.y);
   }, [animateTo, resolved]);
 
   return (
-    <ThemeCtx.Provider value={{ theme, resolved, setTheme, transitioning }}>
+    <ThemeCtx.Provider value={{ theme, resolved, setTheme, transitioning, origin }}>
       {children}
     </ThemeCtx.Provider>
   );
@@ -99,5 +110,6 @@ export function useTheme() {
     resolved: "dark" as Resolved,
     setTheme: () => {},
     transitioning: null as Ctx["transitioning"],
+    origin: null as Origin | null,
   };
 }

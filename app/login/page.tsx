@@ -1,12 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   TrendingUp, Eye, EyeOff, Loader2, Lock, ShieldCheck,
   Check, Mail, KeyRound, ArrowRight, Snowflake, Fingerprint,
 } from "lucide-react";
+import Logo from "@/components/Logo";
+import Recaptcha, { type RecaptchaHandle } from "@/components/Recaptcha";
+import { refreshAuthUser } from "@/components/useAuthUser";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -16,21 +19,35 @@ export default function LoginPage() {
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const captchaRef = useRef<RecaptchaHandle>(null);
+  const captchaRequired = !!process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
+  const [captchaToken, setCaptchaToken] = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(""); setLoading(true);
     try {
+      const recaptchaToken = captchaRef.current?.getToken() || "";
+      if (captchaRequired && !recaptchaToken) {
+        setError("Please tick the “I’m not a robot” box.");
+        return;
+      }
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, recaptchaToken }),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.error || "Login failed"); return; }
+      if (!res.ok) {
+        setError(data.error || "Login failed");
+        captchaRef.current?.reset();
+        return;
+      }
+      await refreshAuthUser();
       router.push(data.user.role === "admin" ? "/admin" : "/dashboard");
     } catch {
       setError("Network error. Please try again.");
+      captchaRef.current?.reset();
     } finally {
       setLoading(false);
     }
@@ -44,9 +61,7 @@ export default function LoginPage() {
       {/* ─── Left security panel (desktop) ─── */}
       <aside className="hidden lg:flex flex-col w-[42%] max-w-lg border-r border-white/[0.05] bg-[#0c0c0d] px-12 py-12">
         <Link href="/" className="flex items-center gap-2.5 mb-auto">
-          <div className="w-7 h-7 rounded-lg bg-blue-500 flex items-center justify-center">
-            <TrendingUp className="w-3.5 h-3.5 text-white" />
-          </div>
+          <Logo size={28} />
           <span className="font-normal text-white text-[15px]">VaultX</span>
         </Link>
 
@@ -82,7 +97,7 @@ export default function LoginPage() {
         </div>
 
         <p className="text-[11px] font-light text-zinc-700 mt-auto">
-          © {new Date().getFullYear()} VaultX. Protected by reCAPTCHA and TLS encryption.
+          © 2015 - {new Date().getFullYear()} VaultX. Protected by reCAPTCHA and TLS encryption.
         </p>
       </aside>
 
@@ -91,9 +106,7 @@ export default function LoginPage() {
         <div className="w-full max-w-sm">
           {/* Mobile logo */}
           <Link href="/" className="lg:hidden flex items-center gap-2 mb-8">
-            <div className="w-7 h-7 rounded-lg bg-blue-500 flex items-center justify-center">
-              <TrendingUp className="w-3.5 h-3.5 text-white" />
-            </div>
+            <Logo size={28} />
             <span className="font-normal text-white text-[15px]">VaultX</span>
           </Link>
 
@@ -143,7 +156,11 @@ export default function LoginPage() {
               <Link href="/forgot-password" className="text-[12px] font-light text-blue-400 hover:underline">Forgot password?</Link>
             </div>
 
-            <button type="submit" disabled={loading}
+            <div className="pt-1">
+              <Recaptcha ref={captchaRef} onChange={setCaptchaToken} theme="dark" />
+            </div>
+
+            <button type="submit" disabled={loading || (captchaRequired && !captchaToken)}
               className="w-full flex items-center justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-500 text-white text-[13px] font-normal rounded-lg transition-colors disabled:opacity-50 mt-2">
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
               {loading ? "Verifying…" : "Sign in securely"}

@@ -3,20 +3,17 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { Shield, ArrowUpRight } from "lucide-react";
-import { useTheme } from "./ThemeProvider";
+import { Shield, ArrowUpRight, ArrowUp, ArrowDown } from "lucide-react";
+import { useAuthUser } from "./useAuthUser";
 
 type Coin = { id: string; symbol: string; name: string; color: string };
 
-const FEATURED: Coin[] = [
-  { id: "bitcoin",     symbol: "BTC", name: "Bitcoin",   color: "#f7931a" },
-  { id: "ethereum",    symbol: "ETH", name: "Ethereum",  color: "#627eea" },
-  { id: "solana",      symbol: "SOL", name: "Solana",    color: "#9945ff" },
-  { id: "binancecoin", symbol: "BNB", name: "BNB",       color: "#f0b90b" },
-];
-
-const REST: Coin[] = [
+const COINS: Coin[] = [
+  { id: "bitcoin",        symbol: "BTC",   name: "Bitcoin",      color: "#f7931a" },
+  { id: "ethereum",       symbol: "ETH",   name: "Ethereum",     color: "#627eea" },
   { id: "tether",         symbol: "USDT",  name: "Tether",       color: "#26a17b" },
+  { id: "binancecoin",    symbol: "BNB",   name: "BNB",          color: "#f0b90b" },
+  { id: "solana",         symbol: "SOL",   name: "Solana",       color: "#9945ff" },
   { id: "usd-coin",       symbol: "USDC",  name: "USD Coin",     color: "#2775ca" },
   { id: "ripple",         symbol: "XRP",   name: "XRP",          color: "#00aae4" },
   { id: "cardano",        symbol: "ADA",   name: "Cardano",      color: "#0033ad" },
@@ -34,14 +31,12 @@ const REST: Coin[] = [
   { id: "monero",         symbol: "XMR",   name: "Monero",       color: "#ff6600" },
 ];
 
-const ALL = [...FEATURED, ...REST];
-
 const FB: Record<string, { price: number; change: number }> = {
   bitcoin:         { price: 67420,    change:  2.14 },
   ethereum:        { price:  3580,    change:  1.87 },
-  solana:          { price:   178,    change:  3.21 },
-  binancecoin:     { price:   582,    change: -0.43 },
   tether:          { price:  1.00,    change:  0.01 },
+  binancecoin:     { price:   582,    change: -0.43 },
+  solana:          { price:   178,    change:  3.21 },
   "usd-coin":      { price:  1.00,    change:  0.00 },
   ripple:          { price:  0.58,    change:  1.12 },
   cardano:         { price:  0.46,    change: -0.91 },
@@ -66,26 +61,82 @@ function fmt(p: number) {
   return `$${p.toFixed(8).replace(/0+$/, "0")}`;
 }
 
+function AssetRow({ coin, price, change, i }: {
+  coin: Coin; price: number; change: number; i: number;
+}) {
+  const up = change >= 0;
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "-30px" }}
+      transition={{ delay: Math.min(i * 0.022, 0.4), duration: 0.42, ease: [0.16, 1, 0.3, 1] }}
+      className="group relative flex items-center gap-3.5 py-3.5 px-1 border-b border-[var(--line-soft)] last:border-b-0 cursor-default"
+    >
+      {/* coin-tinted hover wash */}
+      <div className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none -mx-2"
+           style={{ background: `linear-gradient(90deg, ${coin.color}10, transparent 50%)` }} />
+
+      {/* Coin glyph */}
+      <div className="relative shrink-0">
+        <div className={`w-9 h-9 rounded-full flex items-center justify-center font-semibold tracking-wide ${coin.symbol.length > 3 ? "text-[9px]" : "text-[10.5px]"}`}
+             style={{
+               background: `linear-gradient(135deg, ${coin.color}, ${coin.color}cc)`,
+               color: "#fff",
+               boxShadow: `0 4px 14px -4px ${coin.color}80`,
+             }}>
+          {coin.symbol}
+        </div>
+      </div>
+
+      {/* Name + ticker */}
+      <div className="flex-1 min-w-0 relative">
+        <p className="text-[13.5px] font-normal text-[var(--fg-1)] truncate">{coin.name}</p>
+        <p className="text-[10.5px] font-light text-[var(--fg-4)] tracking-wide mt-0.5">{coin.symbol}</p>
+      </div>
+
+      {/* Price */}
+      <div className="text-right shrink-0 min-w-[90px] relative">
+        <p className="text-[13px] font-light text-[var(--fg-1)] tabular-nums">{fmt(price)}</p>
+        <div className="flex items-center justify-end gap-1 mt-0.5">
+          {up ? (
+            <ArrowUp className="w-2.5 h-2.5 text-emerald-400" />
+          ) : (
+            <ArrowDown className="w-2.5 h-2.5 text-red-400" />
+          )}
+          <span className={`text-[10.5px] font-light tabular-nums ${up ? "text-emerald-400" : "text-red-400"}`}>
+            {Math.abs(change).toFixed(2)}%
+          </span>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 export default function SupportedCoins() {
   const [prices, setPrices] = useState<Record<string, { price: number; change: number }>>(FB);
-  const { resolved } = useTheme();
-  // In light mode the coin chip backgrounds need more saturation to read.
-  const chipBg = (c: string) => (resolved === "light" ? c + "22" : c + "1a");
-  const chipBgStrong = (c: string) => (resolved === "light" ? c + "33" : c + "22");
+  const { user, loaded } = useAuthUser();
+  const signedIn = loaded && !!user;
+  const ctaHref = signedIn ? (user!.role === "admin" ? "/admin" : "/dashboard#deposit") : "/signup";
+  const ctaLabel = signedIn ? "Open dashboard" : "Start depositing";
 
   useEffect(() => {
-    const ids = ALL.map((c) => c.id).join(",");
+    const ids = COINS.map((c) => c.id).join(",");
     fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`)
       .then((r) => r.json())
       .then((data) => {
         const u: typeof FB = {};
-        ALL.forEach((c) => {
+        COINS.forEach((c) => {
           if (data[c.id]?.usd) u[c.id] = { price: data[c.id].usd, change: data[c.id].usd_24h_change ?? 0 };
         });
         if (Object.keys(u).length) setPrices((p) => ({ ...p, ...u }));
       })
       .catch(() => {});
   }, []);
+
+  // Split into two columns of 10 for a clean editorial layout on desktop
+  const left = COINS.slice(0, 10);
+  const right = COINS.slice(10);
 
   return (
     <section className="relative bg-[var(--surface-0)] py-28 px-6 overflow-hidden" id="assets">
@@ -95,15 +146,15 @@ export default function SupportedCoins() {
 
       <div className="relative max-w-6xl mx-auto">
         {/* Heading row */}
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 mb-14">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 mb-16">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.7 }}
           >
-            <p className="text-[11px] font-light tracking-widest text-blue-400/60 uppercase mb-3">Supported assets</p>
-            <h2 className="text-[clamp(32px,5vw,58px)] font-light text-[var(--fg-1)] tracking-tight leading-[1.05]">
+            <p className="text-[11px] font-light tracking-[0.22em] text-blue-400/70 uppercase mb-4">Supported assets</p>
+            <h2 className="text-[clamp(34px,5vw,58px)] font-light text-[var(--fg-1)] tracking-tight leading-[1.04]">
               Twenty coins.<br />
               <span className="text-blue-400">One quiet vault.</span>
             </h2>
@@ -115,115 +166,73 @@ export default function SupportedCoins() {
           <motion.div
             initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
             transition={{ duration: 0.5, delay: 0.2 }}
-            className="flex flex-col gap-2 shrink-0"
+            className="flex flex-col gap-3 shrink-0"
           >
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-400/[0.07] border border-emerald-400/15 w-fit">
               <Shield className="w-3.5 h-3.5 text-emerald-400" />
               <span className="text-[11px] font-normal text-emerald-300/90 tracking-wide">98% cold storage</span>
             </div>
-            <Link href="/signup" className="text-[13px] font-light text-blue-400 hover:text-blue-300 transition-colors inline-flex items-center gap-1.5">
-              Start depositing <ArrowUpRight className="w-3.5 h-3.5" />
+            <Link href={ctaHref} className="text-[12.5px] font-light text-blue-400 hover:text-blue-300 transition-colors inline-flex items-center gap-1.5">
+              {ctaLabel} <ArrowUpRight className="w-3.5 h-3.5" />
             </Link>
           </motion.div>
         </div>
 
-        {/* Featured 4 — big cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-          {FEATURED.map((coin, i) => {
-            const p = prices[coin.id] ?? { price: 0, change: 0 };
-            const up = p.change >= 0;
-            return (
-              <motion.div
-                key={coin.id}
-                initial={{ opacity: 0, y: 16 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-40px" }}
-                transition={{ delay: i * 0.06, duration: 0.55 }}
-                whileHover={{ y: -4, transition: { duration: 0.18 } }}
-                className="group relative bg-[var(--surface-1)] border border-[var(--line-1)] rounded-2xl p-5 overflow-hidden cursor-default"
-                style={{ boxShadow: "var(--shadow-card)" }}
-              >
-                {/* coin-coloured accent bar */}
-                <div className="absolute inset-x-0 top-0 h-[2px] opacity-50 group-hover:opacity-100 transition-opacity"
-                     style={{ background: `linear-gradient(90deg, transparent, ${coin.color}, transparent)` }} />
-                {/* hover glow */}
-                <div className="pointer-events-none absolute -top-16 -right-12 w-40 h-40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-                     style={{ background: `radial-gradient(circle, ${coin.color}26 0%, transparent 70%)` }} />
-
-                <div className="relative z-10">
-                  <div className="flex items-center justify-between mb-5">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center text-[11px] font-semibold tracking-wide border"
-                         style={{ backgroundColor: chipBgStrong(coin.color), color: coin.color, borderColor: coin.color + "33" }}>
-                      {coin.symbol}
-                    </div>
-                    <span className={`text-[10.5px] font-light tabular-nums px-2 py-0.5 rounded-md ${up ? "text-emerald-400 bg-emerald-400/[0.07]" : "text-red-400 bg-red-400/[0.07]"}`}>
-                      {up ? "▲" : "▼"} {Math.abs(p.change).toFixed(2)}%
-                    </span>
-                  </div>
-
-                  <p className="text-[12px] font-light text-[var(--fg-4)] mb-1">{coin.name}</p>
-                  <p className="text-[22px] font-light text-[var(--fg-1)] tabular-nums tracking-tight">{fmt(p.price)}</p>
-
-                  <div className="mt-5 h-[2px] bg-[var(--line-1)] rounded-full overflow-hidden">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      whileInView={{ width: `${Math.min(Math.abs(p.change) * 12, 100)}%` }}
-                      viewport={{ once: true }}
-                      transition={{ duration: 1.1, delay: i * 0.06 + 0.25 }}
-                      className="h-full rounded-full" style={{ backgroundColor: coin.color }} />
-                  </div>
-                </div>
-              </motion.div>
-            );
-          })}
-        </div>
-
-        {/* Divider label */}
+        {/* Asset table — two columns on desktop */}
         <motion.div
-          initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          className="flex items-center gap-3 mt-10 mb-5"
+          initial={{ opacity: 0, y: 14 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-40px" }}
+          transition={{ duration: 0.6 }}
+          className="rounded-2xl border border-[var(--line-1)] bg-[var(--surface-1)] overflow-hidden"
+          style={{ boxShadow: "var(--shadow-card)" }}
         >
-          <span className="text-[10.5px] font-light tracking-[0.2em] text-[var(--fg-5)] uppercase">+ 16 more assets</span>
-          <span className="flex-1 h-px bg-[var(--line-1)]" />
-        </motion.div>
+          {/* Table header */}
+          <div className="grid grid-cols-1 md:grid-cols-2 px-6 py-3 border-b border-[var(--line-1)] bg-[color-mix(in_srgb,var(--surface-0)_60%,transparent)]">
+            <div className="flex items-center justify-between text-[10px] font-normal tracking-[0.18em] text-[var(--fg-5)] uppercase">
+              <span>Asset</span>
+              <span>Price · 24h</span>
+            </div>
+            <div className="hidden md:flex items-center justify-between text-[10px] font-normal tracking-[0.18em] text-[var(--fg-5)] uppercase pl-8 ml-8 border-l border-[var(--line-1)]">
+              <span>Asset</span>
+              <span>Price · 24h</span>
+            </div>
+          </div>
 
-        {/* The rest — clean compact pills */}
-        <div className="flex flex-wrap gap-2">
-          {REST.map((coin, i) => {
-            const p = prices[coin.id] ?? { price: 0, change: 0 };
-            const up = p.change >= 0;
-            return (
-              <motion.div
-                key={coin.id}
-                initial={{ opacity: 0, y: 8 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-40px" }}
-                transition={{ delay: Math.min(i * 0.02, 0.4), duration: 0.4 }}
-                whileHover={{ y: -2, transition: { duration: 0.15 } }}
-                className="group flex items-center gap-2.5 bg-[var(--surface-1)] hover:bg-[var(--surface-2)] border border-[var(--line-1)] hover:border-[var(--line-2)] rounded-full pl-2 pr-3.5 py-1.5 transition-colors cursor-default"
-                title={coin.name}
-              >
-                <span className="w-6 h-6 rounded-full flex items-center justify-center text-[8.5px] font-semibold tracking-wide shrink-0"
-                      style={{ backgroundColor: chipBg(coin.color), color: coin.color }}>
-                  {coin.symbol.length > 4 ? coin.symbol.slice(0, 3) : coin.symbol}
-                </span>
-                <span className="text-[11.5px] font-normal text-[var(--fg-2)] tracking-wide">{coin.symbol}</span>
-                <span className="text-[10.5px] font-light text-[var(--fg-4)] tabular-nums">{fmt(p.price)}</span>
-                <span className={`text-[9.5px] font-light tabular-nums ${up ? "text-emerald-400" : "text-red-400"}`}>
-                  {up ? "+" : ""}{p.change.toFixed(1)}%
-                </span>
-              </motion.div>
-            );
-          })}
-        </div>
+          {/* Rows */}
+          <div className="grid grid-cols-1 md:grid-cols-2 px-6">
+            <div>
+              {left.map((c, i) => {
+                const p = prices[c.id] ?? { price: 0, change: 0 };
+                return <AssetRow key={c.id} coin={c} price={p.price} change={p.change} i={i} />;
+              })}
+            </div>
+            <div className="md:pl-8 md:ml-8 md:border-l border-[var(--line-1)]">
+              {right.map((c, i) => {
+                const p = prices[c.id] ?? { price: 0, change: 0 };
+                return <AssetRow key={c.id} coin={c} price={p.price} change={p.change} i={i + 10} />;
+              })}
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="px-6 py-3.5 border-t border-[var(--line-1)] flex items-center justify-between bg-[color-mix(in_srgb,var(--surface-0)_60%,transparent)]">
+            <p className="text-[10.5px] font-light text-[var(--fg-4)] tracking-wide">
+              20 assets · live via CoinGecko
+            </p>
+            <div className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-[10.5px] font-light text-[var(--fg-4)]">Live</span>
+            </div>
+          </div>
+        </motion.div>
 
         <motion.p
           initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}
           transition={{ duration: 0.5, delay: 0.3 }}
-          className="text-[11px] font-light text-[var(--fg-5)] text-center mt-14"
+          className="text-[11px] font-light text-[var(--fg-5)] text-center mt-10"
         >
-          Live prices via CoinGecko · more assets added regularly.
+          More assets added regularly.
         </motion.p>
       </div>
     </section>

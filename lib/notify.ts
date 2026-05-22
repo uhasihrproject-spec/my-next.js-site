@@ -72,7 +72,7 @@ export function emailLayout(
   body: string,
   cta?: { label: string; url: string }
 ): string {
-  const year = new Date().getFullYear();
+  const year = `2015 - ${new Date().getFullYear()}`;
   const FONT = "'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
 
   const ctaBlock = cta
@@ -124,8 +124,14 @@ export function emailLayout(
               <table role="presentation" cellpadding="0" cellspacing="0" border="0">
                 <tr>
                   <td style="vertical-align:middle;">
-                    <div style="width:30px;height:30px;background-color:#2563eb;border-radius:8px;text-align:center;line-height:30px;">
-                      <span style="color:#ffffff;font-family:${FONT};font-size:14px;font-weight:600;">V</span>
+                    <!-- Canonical 4-square VaultX mark, inline SVG so it travels through email -->
+                    <div style="width:30px;height:30px;background-color:#2563eb;border-radius:8px;line-height:0;text-align:center;">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 12 12" style="display:inline-block;vertical-align:middle;margin-top:7px;">
+                        <rect x="0.5" y="0.5" width="4.5" height="4.5" rx="0.7" fill="#ffffff"/>
+                        <rect x="7"   y="0.5" width="4.5" height="4.5" rx="0.7" fill="#ffffff" fill-opacity="0.55"/>
+                        <rect x="0.5" y="7"   width="4.5" height="4.5" rx="0.7" fill="#ffffff" fill-opacity="0.55"/>
+                        <rect x="7"   y="7"   width="4.5" height="4.5" rx="0.7" fill="#ffffff" fill-opacity="0.30"/>
+                      </svg>
                     </div>
                   </td>
                   <td style="padding-left:9px;vertical-align:middle;">

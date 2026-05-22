@@ -17,6 +17,7 @@ import {
 import type { CoinKey } from "@/lib/db";
 import ChatWidget from "@/components/ChatWidget";
 import { useTheme, type ThemeChoice } from "@/components/ThemeProvider";
+import Logo from "@/components/Logo";
 
 /* ─── Constants ─── */
 const COINS: CoinKey[] = [
@@ -286,9 +287,9 @@ function BalanceStack({ user, activeCoins, locked, hidden, onToggleHidden }: {
   useEffect(() => { if (index >= n) setIndex(0); }, [n, index]);
   const safeIndex = index < n ? index : 0;
 
-  // A stable, readable vault number derived from the account id.
-  const rawId = (user.id.replace(/[^a-zA-Z0-9]/g, "").toUpperCase() + "00000000").slice(-8);
-  const vaultNo = `VX-${rawId.slice(0, 4)}-${rawId.slice(4)}`;
+  // Vault number — censored credit-card style, last 4 chars visible.
+  const last4 = (user.id.replace(/[^a-zA-Z0-9]/g, "").toUpperCase() + "0000").slice(-4);
+  const vaultNo = `•••• •••• •••• ${last4}`;
 
   // Theme-aware card surface: dark navy in dark mode, soft silver-blue in light mode.
   const emptyBg = isLight
@@ -343,9 +344,7 @@ function BalanceStack({ user, activeCoins, locked, hidden, onToggleHidden }: {
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-7">
               <div className="flex items-center gap-2">
-                <div className="w-5 h-5 rounded-md bg-blue-500 flex items-center justify-center">
-                  <TrendingUp className="w-2.5 h-2.5 text-white" />
-                </div>
+                <Logo size={18} />
                 <span className="text-[12px] font-normal tracking-wide" style={{ color: txMain }}>VaultX</span>
               </div>
               <div className="flex items-center gap-1.5 px-2 py-1 rounded-md"
@@ -434,9 +433,7 @@ function BalanceStack({ user, activeCoins, locked, hidden, onToggleHidden }: {
               {/* Header */}
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-md bg-blue-500 flex items-center justify-center">
-                    <TrendingUp className="w-2.5 h-2.5 text-white" />
-                  </div>
+                  <Logo size={18} />
                   <span className="text-[12px] font-normal tracking-wide" style={{ color: txMain }}>VaultX</span>
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -1580,7 +1577,7 @@ function ThemePicker() {
           return (
             <button
               key={value}
-              onClick={() => setTheme(value)}
+              onClick={(e) => setTheme(value, { x: e.clientX, y: e.clientY })}
               className={`relative flex flex-col items-center gap-1.5 py-3 rounded-lg border text-[11.5px] font-light transition-all ${
                 active
                   ? "border-blue-500/40 bg-blue-500/[0.08] text-blue-300"
@@ -2072,10 +2069,8 @@ function GateScreen({ user, hasPin, onUnlock }: {
       className="fixed inset-0 z-[100] bg-[#0a0a0b] flex flex-col items-center justify-center px-6 py-10 overflow-y-auto"
     >
       <div className="flex items-center gap-2 mb-auto">
-        <motion.div className="w-6 h-6 rounded-md bg-blue-500 flex items-center justify-center"
-          animate={{ scale: [1, 1.09, 1] }}
-          transition={{ duration: 3.4, repeat: Infinity, ease: "easeInOut" }}>
-          <TrendingUp className="w-3 h-3 text-white" />
+        <motion.div animate={{ scale: [1, 1.09, 1] }} transition={{ duration: 3.4, repeat: Infinity, ease: "easeInOut" }}>
+          <Logo size={24} />
         </motion.div>
         <span className="font-normal text-white text-[14px]">VaultX</span>
       </div>
@@ -2419,9 +2414,7 @@ function ReceiptCard({ data }: { data: ReceiptData }) {
       <div className="px-5 pt-5 pb-4">
         <div className="flex items-center justify-between mb-1.5">
           <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-md bg-blue-500 flex items-center justify-center">
-              <TrendingUp className="w-2.5 h-2.5 text-white" />
-            </div>
+            <Logo size={18} />
             <span className="text-[12px] font-normal text-white">VaultX</span>
           </div>
           <span className="text-[9px] font-normal tracking-[0.18em] text-zinc-600 uppercase">Receipt</span>
@@ -2695,10 +2688,8 @@ export default function Dashboard() {
         {/* Logo */}
         <div className="px-5 h-16 flex items-center border-b border-white/[0.04]">
           <Link href="/" className="flex items-center gap-2.5">
-            <motion.div className="w-7 h-7 rounded-lg bg-blue-500 flex items-center justify-center"
-              animate={{ scale: [1, 1.09, 1] }}
-              transition={{ duration: 3.4, repeat: Infinity, ease: "easeInOut" }}>
-              <TrendingUp className="w-3.5 h-3.5 text-white" />
+            <motion.div animate={{ scale: [1, 1.09, 1] }} transition={{ duration: 3.4, repeat: Infinity, ease: "easeInOut" }}>
+              <Logo size={28} />
             </motion.div>
             <span className="font-normal text-white text-[15px] tracking-tight">VaultX</span>
           </Link>
@@ -2774,10 +2765,8 @@ export default function Dashboard() {
       <header className="md:hidden sticky top-0 z-30 bg-[#0a0a0b]/90 backdrop-blur-xl border-b border-white/[0.05]">
         <div className="flex items-center justify-between px-5 h-14">
           <Link href="/" className="flex items-center gap-2">
-            <motion.div className="w-6 h-6 rounded-md bg-blue-500 flex items-center justify-center"
-              animate={{ scale: [1, 1.09, 1] }}
-              transition={{ duration: 3.4, repeat: Infinity, ease: "easeInOut" }}>
-              <TrendingUp className="w-3 h-3 text-white" />
+            <motion.div animate={{ scale: [1, 1.09, 1] }} transition={{ duration: 3.4, repeat: Infinity, ease: "easeInOut" }}>
+              <Logo size={24} />
             </motion.div>
             <span className="font-normal text-white text-[14px]">VaultX</span>
           </Link>

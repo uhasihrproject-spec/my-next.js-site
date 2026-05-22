@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { useAuthUser } from "./useAuthUser";
 
 const TIERS = [
   {
@@ -28,6 +29,11 @@ const TIERS = [
 ];
 
 export default function Pricing() {
+  const { user, loaded } = useAuthUser();
+  const signedIn = loaded && !!user;
+  const ctaHref = signedIn ? (user!.role === "admin" ? "/admin" : "/dashboard") : "/signup";
+  const ctaLabel = signedIn ? (user!.role === "admin" ? "Open admin" : "Open dashboard") : "Get started";
+
   return (
     <section className="bg-[#111113] py-28 px-6 overflow-hidden" id="pricing">
       <div className="max-w-5xl mx-auto">
@@ -82,14 +88,14 @@ export default function Pricing() {
                 ))}
               </ul>
 
-              <Link href="/signup"
+              <Link href={ctaHref}
                 className={`w-full py-2.5 rounded-xl text-[13px] font-normal text-center transition-all ${
                   tier.primary
                     ? "bg-blue-600 hover:bg-blue-500 text-white"
                     : "border border-white/[0.07] hover:border-white/[0.13] text-zinc-500 hover:text-zinc-200"
                 }`}
               >
-                Get started
+                {ctaLabel}
               </Link>
             </motion.div>
           ))}

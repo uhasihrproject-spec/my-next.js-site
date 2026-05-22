@@ -8,6 +8,8 @@ import {
   TrendingUp, Mail, KeyRound, Loader2, Lock, ShieldCheck,
   Eye, EyeOff, ArrowLeft, ArrowRight, Check, AlertCircle, Fingerprint,
 } from "lucide-react";
+import Logo from "@/components/Logo";
+import Recaptcha, { type RecaptchaHandle } from "@/components/Recaptcha";
 
 type Step = "email" | "verify" | "done";
 
@@ -56,17 +58,30 @@ export default function ForgotPasswordPage() {
   const [emailSent, setEmailSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const captchaRef = useRef<RecaptchaHandle>(null);
+  const [captchaToken, setCaptchaToken] = useState("");
+  const captchaRequired = !!process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
 
   async function requestCode(e?: React.FormEvent) {
     e?.preventDefault();
+    const recaptchaToken = captchaRef.current?.getToken() || "";
+    if (captchaRequired && !recaptchaToken) {
+      setError("Please tick the “I’m not a robot” box.");
+      return;
+    }
     setError(""); setBusy(true);
     try {
       const r = await fetch("/api/auth/reset", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "request", email }),
+        body: JSON.stringify({ action: "request", email, recaptchaToken }),
       });
       const d = await r.json();
-      if (!r.ok) { setError(d.error || "Couldn't start the reset"); return; }
+      if (!r.ok) {
+        setError(d.error || "Couldn't start the reset");
+        captchaRef.current?.reset();
+        setCaptchaToken("");
+        return;
+      }
       setDevCode(d.devCode || "");
       setEmailSent(!!d.sent);
       setStep("verify");
@@ -95,9 +110,7 @@ export default function ForgotPasswordPage() {
   return (
     <div className="min-h-screen bg-[#0a0a0b] text-white flex flex-col items-center justify-center px-6 py-12">
       <Link href="/" className="flex items-center gap-2 mb-10">
-        <div className="w-7 h-7 rounded-lg bg-blue-500 flex items-center justify-center">
-          <TrendingUp className="w-3.5 h-3.5 text-white" />
-        </div>
+        <Logo size={28} />
         <span className="font-normal text-white text-[15px]">VaultX</span>
       </Link>
 
@@ -132,7 +145,10 @@ export default function ForgotPasswordPage() {
                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required
                   placeholder="Email address" className={fieldCls} />
               </div>
-              <button type="submit" disabled={busy}
+              <div className="mb-4">
+                <Recaptcha ref={captchaRef} onChange={setCaptchaToken} theme="dark" />
+              </div>
+              <button type="submit" disabled={busy || (captchaRequired && !captchaToken)}
                 className="w-full flex items-center justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-500 text-white text-[13px] font-normal rounded-lg transition-colors disabled:opacity-50">
                 {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
                 Send verification code

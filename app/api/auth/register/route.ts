@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUserByEmail, hashPassword, createSession, createUser } from "@/lib/db";
 import { sendEmail, emailLayout } from "@/lib/notify";
 
+// Note: reCAPTCHA isn't required here — the signup flow gates the OTP
+// "send" endpoint with reCAPTCHA, so anyone reaching this final register
+// step has already been verified.
 export async function POST(req: NextRequest) {
   try {
     const { name, email, password, phone, country, dob, phoneVerified, faceVerified } = await req.json();

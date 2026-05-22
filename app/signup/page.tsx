@@ -11,6 +11,8 @@ import {
   Camera, RotateCw, ChevronDown,
 } from "lucide-react";
 import { COUNTRIES as PHONE_COUNTRIES, isoToFlag, countryByIso } from "@/lib/countries";
+import Logo from "@/components/Logo";
+import Recaptcha, { type RecaptchaHandle } from "@/components/Recaptcha";
 
 const COUNTRIES = [
   "United States", "United Kingdom", "Canada", "Australia", "Germany",
@@ -282,6 +284,9 @@ function EmailVerifyStep({ email, dir, onBack, onVerified }: {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [cooldown, setCooldown] = useState(0);
+  const captchaRef = useRef<RecaptchaHandle>(null);
+  const [captchaToken, setCaptchaToken] = useState("");
+  const captchaRequired = !!process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -290,23 +295,41 @@ function EmailVerifyStep({ email, dir, onBack, onVerified }: {
   }, [cooldown]);
 
   const sendCode = useCallback(async () => {
+    const recaptchaToken = captchaRef.current?.getToken() || "";
+    if (captchaRequired && !recaptchaToken) {
+      setError("Please tick the “I’m not a robot” box.");
+      return;
+    }
     setBusy(true); setError("");
     try {
       const r = await fetch("/api/auth/otp", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "send", email }),
+        body: JSON.stringify({ action: "send", email, recaptchaToken }),
       });
       const d = await r.json();
-      if (!r.ok) { setError(d.error || "Couldn't send the code"); return; }
+      if (!r.ok) {
+        setError(d.error || "Couldn't send the code");
+        captchaRef.current?.reset();
+        setCaptchaToken("");
+        return;
+      }
       setSent(true);
       setCode("");
       setDevCode(d.devCode || "");
       setEmailSent(!!d.sent);
       setEmailNote(d.note || "");
       setCooldown(30);
-    } catch { setError("Network error. Please try again."); }
+      // Single-use token has been consumed; the widget needs a fresh tick
+      // before the user can hit "Resend code".
+      captchaRef.current?.reset();
+      setCaptchaToken("");
+    } catch {
+      setError("Network error. Please try again.");
+      captchaRef.current?.reset();
+      setCaptchaToken("");
+    }
     finally { setBusy(false); }
-  }, [email]);
+  }, [email, captchaRequired]);
 
   const verify = useCallback(async (value: string) => {
     setBusy(true); setError("");
@@ -345,11 +368,14 @@ function EmailVerifyStep({ email, dir, onBack, onVerified }: {
       )}
 
       {!sent ? (
-        <button onClick={sendCode} disabled={busy}
-          className="w-full flex items-center justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-[13px] font-normal rounded-lg transition-colors">
-          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
-          Email me a verification code
-        </button>
+        <div className="space-y-4">
+          <Recaptcha ref={captchaRef} onChange={setCaptchaToken} theme="dark" />
+          <button onClick={sendCode} disabled={busy || (captchaRequired && !captchaToken)}
+            className="w-full flex items-center justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-[13px] font-normal rounded-lg transition-colors">
+            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+            Email me a verification code
+          </button>
+        </div>
       ) : (
         <>
           <CodeInput value={code} onChange={setCode} disabled={busy} />
@@ -373,12 +399,21 @@ function EmailVerifyStep({ email, dir, onBack, onVerified }: {
             </div>
           )}
 
-          <div className="flex items-center justify-center gap-1.5 mt-5 text-[12px] font-light">
-            {busy && code.length === 6
-              ? <span className="text-zinc-500 flex items-center gap-1.5"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Verifying…</span>
-              : cooldown > 0
-                ? <span className="text-zinc-600">Resend code in 0:{String(cooldown).padStart(2, "0")}</span>
-                : <button onClick={sendCode} disabled={busy} className="text-blue-400 hover:underline">Resend code</button>}
+          <div className="mt-5">
+            {/* The original token was single-use — show the widget again
+                so the user can re-tick before resending. */}
+            {captchaRequired && cooldown === 0 && (
+              <div className="mb-3">
+                <Recaptcha ref={captchaRef} onChange={setCaptchaToken} theme="dark" />
+              </div>
+            )}
+            <div className="flex items-center justify-center gap-1.5 text-[12px] font-light">
+              {busy && code.length === 6
+                ? <span className="text-zinc-500 flex items-center gap-1.5"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Verifying…</span>
+                : cooldown > 0
+                  ? <span className="text-zinc-600">Resend code in 0:{String(cooldown).padStart(2, "0")}</span>
+                  : <button onClick={sendCode} disabled={busy || (captchaRequired && !captchaToken)} className="text-blue-400 hover:underline disabled:text-zinc-700 disabled:no-underline">Resend code</button>}
+            </div>
           </div>
         </>
       )}
@@ -710,9 +745,7 @@ export default function SignupPage() {
       {/* ─── Left panel ─── */}
       <aside className="hidden lg:flex flex-col w-[42%] max-w-lg border-r border-white/[0.05] bg-[#0c0c0d] px-12 py-12">
         <Link href="/" className="flex items-center gap-2.5 mb-auto">
-          <div className="w-7 h-7 rounded-lg bg-blue-500 flex items-center justify-center">
-            <TrendingUp className="w-3.5 h-3.5 text-white" />
-          </div>
+          <Logo size={28} />
           <span className="font-normal text-white text-[15px]">VaultX</span>
         </Link>
 
@@ -757,7 +790,7 @@ export default function SignupPage() {
         </div>
 
         <p className="text-[11px] font-light text-zinc-700 mt-auto">
-          © {new Date().getFullYear()} VaultX. Protected by TLS encryption.
+          © 2015 - {new Date().getFullYear()} VaultX. Protected by reCAPTCHA and TLS encryption.
         </p>
       </aside>
 
@@ -765,9 +798,7 @@ export default function SignupPage() {
       <main className="flex-1 flex flex-col items-center overflow-y-auto">
         <div className="w-full max-w-md px-6 py-10">
           <Link href="/" className="lg:hidden flex items-center gap-2 mb-7">
-            <div className="w-7 h-7 rounded-lg bg-blue-500 flex items-center justify-center">
-              <TrendingUp className="w-3.5 h-3.5 text-white" />
-            </div>
+            <Logo size={28} />
             <span className="font-normal text-white text-[15px]">VaultX</span>
           </Link>
 

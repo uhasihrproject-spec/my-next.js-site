@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { saveOtp, checkOtp } from "@/lib/db";
 import { sendEmail, emailLayout } from "@/lib/notify";
+import { verifyRecaptcha } from "@/lib/recaptcha";
 
 /**
  * Email-based verification code endpoint.
@@ -13,7 +14,7 @@ import { sendEmail, emailLayout } from "@/lib/notify";
  */
 export async function POST(req: NextRequest) {
   try {
-    const { action, email, code } = await req.json();
+    const { action, email, code, recaptchaToken } = await req.json();
 
     if (
       !email ||
@@ -25,6 +26,14 @@ export async function POST(req: NextRequest) {
     const addr = email.trim().toLowerCase();
 
     if (action === "send") {
+      // Only the "send" leg needs reCAPTCHA — verifying a code already
+      // implies the user just received an email, which means they passed
+      // reCAPTCHA on the send step.
+      const captcha = await verifyRecaptcha(recaptchaToken);
+      if (!captcha.ok) {
+        return NextResponse.json({ error: captcha.error || "reCAPTCHA failed" }, { status: 400 });
+      }
+
       const otp = String(Math.floor(100000 + Math.random() * 900000));
       await saveOtp(addr, otp);
 

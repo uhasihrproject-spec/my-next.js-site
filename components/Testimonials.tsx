@@ -108,8 +108,14 @@ export default function Testimonials() {
       {/* Auto-scroll carousel — no drag, no overflow scroll */}
       <div className="relative">
         {/* Fade edges */}
-        <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-24 bg-gradient-to-r from-[#161618] to-transparent z-10" />
-        <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-[#161618] to-transparent z-10" />
+        <div
+          className="pointer-events-none absolute left-0 top-0 bottom-0 w-24 z-10"
+          style={{ background: "linear-gradient(to right, var(--surface-0), transparent)" }}
+        />
+        <div
+          className="pointer-events-none absolute right-0 top-0 bottom-0 w-24 z-10"
+          style={{ background: "linear-gradient(to left, var(--surface-0), transparent)" }}
+        />
 
         <div className="overflow-hidden">
           <div className="animate-carousel py-3">
