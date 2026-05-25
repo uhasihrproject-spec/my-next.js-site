@@ -10,6 +10,7 @@ import {
   Save, Globe, Clock, Wallet, RefreshCw,
   ArrowLeft, Send, AlertTriangle, CheckCircle2,
   ChevronRight, Lock, Unlock, ArrowRight, Trash2,
+  Mail, Inbox as InboxIcon, Archive, Reply,
 } from "lucide-react";
 import type { CoinKey } from "@/lib/db";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -31,7 +32,7 @@ const COIN_COLORS: Record<CoinKey, string> = {
   UNI: "#ff007a", XMR: "#ff6600",
 };
 
-type Tab = "overview" | "users" | "deposits" | "withdrawals" | "messages" | "settings";
+type Tab = "overview" | "users" | "deposits" | "withdrawals" | "messages" | "inbox" | "settings";
 
 /* ─── Types ─── */
 interface UserData {
@@ -62,6 +63,20 @@ interface ChatMsg { id: string; text: string; from: "user" | "admin"; createdAt:
 interface ConvoData {
   userId: string; userName: string; userEmail: string;
   messages: ChatMsg[]; unread: number; lastAt: string;
+}
+interface InboundEmailRow {
+  id: string;
+  from: string;
+  fromName?: string;
+  fromAddress: string;
+  to: string;
+  subject: string;
+  text: string;
+  html?: string;
+  receivedAt: string;
+  read: boolean;
+  archived?: boolean;
+  replies?: { id: string; body: string; sentAt: string; from: string }[];
 }
 
 /* ─── Status Badge ─── */
@@ -595,6 +610,14 @@ export default function AdminPage() {
   const [replyText, setReplyText] = useState("");
   const [sendingReply, setSendingReply] = useState(false);
   const [totalUnread, setTotalUnread] = useState(0);
+  /* ── Inbox (incoming @yourdomain emails via Resend webhook) ── */
+  const [inbox, setInbox] = useState<InboundEmailRow[]>([]);
+  const [inboxUnread, setInboxUnread] = useState(0);
+  const [activeEmail, setActiveEmail] = useState<string | null>(null);
+  const [inboxFilter, setInboxFilter] = useState<"all" | "unread" | "archived">("all");
+  const [inboxReply, setInboxReply] = useState("");
+  const [inboxSending, setInboxSending] = useState(false);
+  const [inboxMobileView, setInboxMobileView] = useState<"list" | "thread">("list");
   const [savingUser, setSavingUser] = useState<string | null>(null);
   const [deletingUser, setDeletingUser] = useState<string | null>(null);
   const [savingSettings, setSavingSettings] = useState(false);
@@ -632,13 +655,14 @@ export default function AdminPage() {
 
   const fetchAll = useCallback(async () => {
     try {
-      const [meR, usersR, depsR, wdsR, setR, msgsR] = await Promise.all([
+      const [meR, usersR, depsR, wdsR, setR, msgsR, inboxR] = await Promise.all([
         fetch("/api/auth/me"),
         fetch("/api/admin/users"),
         fetch("/api/admin/deposits"),
         fetch("/api/admin/withdrawals"),
         fetch("/api/admin/settings"),
         fetch("/api/admin/messages"),
+        fetch("/api/admin/inbox"),
       ]);
       const me = await meR.json();
       if (!me.user || me.user.role !== "admin") { router.push("/login"); return; }
@@ -651,6 +675,11 @@ export default function AdminPage() {
         const d = await msgsR.json();
         setConversations(d.conversations ?? []);
         setTotalUnread(d.totalUnread ?? 0);
+      }
+      if (inboxR.ok) {
+        const d = await inboxR.json();
+        setInbox(d.emails ?? []);
+        setInboxUnread(d.unread ?? 0);
       }
     } catch { /* silently ignore */ }
     finally { setLoading(false); }
@@ -779,6 +808,42 @@ export default function AdminPage() {
     else showToast("Action failed", "error");
   }
 
+  /* ── Inbox actions ── */
+  async function inboxAction(id: string, action: "mark-read" | "mark-unread" | "archive" | "unarchive") {
+    const res = await fetch("/api/admin/inbox", {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, action }),
+    });
+    if (res.ok) await fetchAll();
+    else showToast("Action failed", "error");
+  }
+  async function inboxReplySend() {
+    if (!activeEmail || !inboxReply.trim() || inboxSending) return;
+    setInboxSending(true);
+    const res = await fetch("/api/admin/inbox", {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: activeEmail, action: "reply", replyBody: inboxReply }),
+    });
+    setInboxSending(false);
+    if (res.ok) { setInboxReply(""); await fetchAll(); showToast("Reply sent"); }
+    else {
+      const d = await res.json().catch(() => ({ error: "Send failed" }));
+      showToast(d.error || "Reply failed", "error");
+    }
+  }
+  async function inboxDelete(id: string) {
+    if (!confirm("Delete this email permanently?")) return;
+    const res = await fetch("/api/admin/inbox", {
+      method: "DELETE", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    if (res.ok) {
+      if (activeEmail === id) setActiveEmail(null);
+      await fetchAll();
+      showToast("Email deleted");
+    } else showToast("Delete failed", "error");
+  }
+
   async function handleWithdrawalAction(wd: WithdrawalRow, action: string, note: string, networkFee?: string) {
     const res = await fetch("/api/admin/withdrawals", {
       method: "PUT", headers: { "Content-Type": "application/json" },
@@ -850,6 +915,7 @@ export default function AdminPage() {
     { id: "deposits",     label: "Deposits",     icon: <ArrowDownCircle className="w-[18px] h-[18px]" />, badge: pendingDeposits },
     { id: "withdrawals",  label: "Withdrawals",  icon: <ArrowUpCircle className="w-[18px] h-[18px]" />, badge: pendingWithdrawals },
     { id: "messages",     label: "Messages",     icon: <MessageSquare className="w-[18px] h-[18px]" />, badge: totalUnread },
+    { id: "inbox",        label: "Inbox",        icon: <InboxIcon className="w-[18px] h-[18px]" />, badge: inboxUnread },
     { id: "settings",     label: "Settings",     icon: <Settings className="w-[18px] h-[18px]" /> },
   ];
 
@@ -906,7 +972,7 @@ export default function AdminPage() {
               {item.badge !== undefined && item.badge > 0 && (
                 <span className={`text-[9px] font-normal rounded-md px-1.5 py-0.5 ${
                   item.id === "deposits" || item.id === "withdrawals" ? "bg-amber-400/15 text-amber-400"
-                  : item.id === "messages" ? "bg-blue-600/20 text-blue-400"
+                  : item.id === "messages" || item.id === "inbox" ? "bg-blue-600/20 text-blue-400"
                   : "bg-white/[0.07] text-zinc-400"
                 }`}>{item.badge}</span>
               )}
@@ -1416,6 +1482,203 @@ export default function AdminPage() {
                     </div>
                   </>
                 )}
+              </motion.div>
+            )}
+
+            {/* ══ INBOX ══ */}
+            {tab === "inbox" && (
+              <motion.div key="inbox" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+                <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between mb-6 gap-3">
+                  <div>
+                    <p className="text-[10px] font-light tracking-widest text-zinc-600 uppercase mb-1">Inbound</p>
+                    <h1 className="text-xl font-light text-white">Inbox <span className="text-zinc-700 text-sm">· {inbox.length}</span></h1>
+                    <p className="text-[12px] font-light text-zinc-600 mt-1">
+                      Emails sent to your domain — routed here by Resend.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {(["all", "unread", "archived"] as const).map((f) => (
+                      <button key={f} onClick={() => setInboxFilter(f)}
+                        className={`px-3 py-1.5 rounded-lg text-[11px] font-light capitalize transition-all border ${
+                          inboxFilter === f
+                            ? "bg-blue-500/15 border-blue-500/30 text-blue-300"
+                            : "bg-white/[0.03] border-white/[0.06] text-zinc-500 hover:text-zinc-300"
+                        }`}>
+                        {f}
+                      </button>
+                    ))}
+                    <button onClick={fetchAll} className="flex items-center gap-2 px-3 py-1.5 bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.06] text-zinc-500 hover:text-zinc-200 text-[11px] font-light rounded-lg transition-all">
+                      <RefreshCw className="w-3 h-3" /> Refresh
+                    </button>
+                  </div>
+                </div>
+
+                {/* Empty state */}
+                {inbox.length === 0 && (
+                  <div className="flex flex-col items-center justify-center py-20 rounded-2xl border border-dashed border-white/[0.06]">
+                    <div className="w-12 h-12 rounded-2xl bg-blue-500/[0.08] border border-blue-500/15 flex items-center justify-center mb-3">
+                      <InboxIcon className="w-5 h-5 text-blue-400" />
+                    </div>
+                    <p className="text-[14px] font-normal text-zinc-300 mb-1">No inbound emails yet</p>
+                    <p className="text-[12px] font-light text-zinc-600 max-w-sm text-center px-4">
+                      When someone emails an address at your domain, it&apos;ll appear here automatically. Make sure the Resend webhook is pointed at <span className="font-mono text-zinc-400">/api/inbound-email</span>.
+                    </p>
+                  </div>
+                )}
+
+                {/* Mobile: list or thread view; Desktop: split */}
+                {inbox.length > 0 && (() => {
+                  const filtered = inbox.filter((e) => {
+                    if (inboxFilter === "unread") return !e.read && !e.archived;
+                    if (inboxFilter === "archived") return !!e.archived;
+                    return !e.archived;
+                  });
+                  const active = filtered.find((e) => e.id === activeEmail) || inbox.find((e) => e.id === activeEmail);
+
+                  return (
+                    <div className="grid md:grid-cols-[340px_1fr] gap-4">
+                      {/* List */}
+                      <div className={`bg-[#0e0e10] border border-white/[0.05] rounded-2xl overflow-hidden ${inboxMobileView === "thread" ? "hidden md:block" : ""}`}>
+                        {filtered.length === 0 ? (
+                          <div className="p-10 text-center text-[12px] font-light text-zinc-600">Nothing here.</div>
+                        ) : (
+                          <ul className="divide-y divide-white/[0.04] max-h-[72vh] overflow-y-auto">
+                            {filtered.map((e) => {
+                              const isActive = e.id === activeEmail;
+                              return (
+                                <li key={e.id}>
+                                  <button
+                                    onClick={() => {
+                                      setActiveEmail(e.id);
+                                      setInboxMobileView("thread");
+                                      if (!e.read) inboxAction(e.id, "mark-read");
+                                    }}
+                                    className={`w-full text-left px-4 py-3 transition-colors ${
+                                      isActive ? "bg-blue-500/[0.07]" : "hover:bg-white/[0.02]"
+                                    }`}
+                                  >
+                                    <div className="flex items-center justify-between gap-2 mb-1">
+                                      <span className={`text-[12.5px] truncate ${!e.read ? "text-white font-normal" : "text-zinc-400 font-light"}`}>
+                                        {e.fromName || e.fromAddress || "Unknown sender"}
+                                      </span>
+                                      <span className="text-[10px] font-light text-zinc-600 shrink-0">
+                                        {new Date(e.receivedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                                      </span>
+                                    </div>
+                                    <p className={`text-[11.5px] truncate ${!e.read ? "text-zinc-200" : "text-zinc-500 font-light"}`}>
+                                      {e.subject}
+                                    </p>
+                                    <p className="text-[10.5px] font-light text-zinc-700 truncate mt-0.5">
+                                      {e.text.slice(0, 80).replace(/\s+/g, " ")}
+                                    </p>
+                                  </button>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        )}
+                      </div>
+
+                      {/* Thread / detail */}
+                      <div className={`bg-[#0e0e10] border border-white/[0.05] rounded-2xl overflow-hidden ${inboxMobileView === "list" ? "hidden md:block" : ""}`}>
+                        {!active ? (
+                          <div className="h-full flex flex-col items-center justify-center py-20 text-center px-6">
+                            <Mail className="w-6 h-6 text-zinc-700 mb-3" />
+                            <p className="text-[13px] font-light text-zinc-500">Select an email to read.</p>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col h-full max-h-[72vh]">
+                            {/* Header */}
+                            <div className="px-5 py-4 border-b border-white/[0.05]">
+                              <div className="md:hidden mb-3">
+                                <button onClick={() => setInboxMobileView("list")}
+                                  className="flex items-center gap-1.5 text-[11px] font-light text-zinc-500 hover:text-zinc-300">
+                                  <ArrowLeft className="w-3.5 h-3.5" /> Back to list
+                                </button>
+                              </div>
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-[15px] font-normal text-white truncate">{active.subject}</p>
+                                  <p className="text-[12px] font-light text-zinc-500 mt-1 truncate">
+                                    <span className="text-zinc-300">{active.fromName || active.fromAddress}</span>
+                                    <span className="text-zinc-700"> · {active.fromAddress}</span>
+                                  </p>
+                                  <p className="text-[10.5px] font-light text-zinc-600 mt-0.5">
+                                    To {active.to} · {new Date(active.receivedAt).toLocaleString()}
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <button onClick={() => inboxAction(active.id, active.read ? "mark-unread" : "mark-read")}
+                                    title={active.read ? "Mark as unread" : "Mark as read"}
+                                    className="w-8 h-8 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] flex items-center justify-center text-zinc-500 hover:text-zinc-200 transition-colors">
+                                    <Mail className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button onClick={() => inboxAction(active.id, active.archived ? "unarchive" : "archive")}
+                                    title={active.archived ? "Unarchive" : "Archive"}
+                                    className="w-8 h-8 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] flex items-center justify-center text-zinc-500 hover:text-zinc-200 transition-colors">
+                                    <Archive className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button onClick={() => inboxDelete(active.id)}
+                                    title="Delete permanently"
+                                    className="w-8 h-8 rounded-lg bg-red-500/[0.06] hover:bg-red-500/[0.15] flex items-center justify-center text-red-400 transition-colors">
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Body */}
+                            <div className="flex-1 overflow-y-auto px-5 py-5">
+                              {active.html ? (
+                                <div className="prose prose-invert prose-sm max-w-none text-[13px] font-light text-zinc-200"
+                                  dangerouslySetInnerHTML={{ __html: active.html }} />
+                              ) : (
+                                <pre className="whitespace-pre-wrap font-sans text-[13px] font-light text-zinc-200 leading-relaxed">{active.text}</pre>
+                              )}
+
+                              {/* Sent replies */}
+                              {active.replies && active.replies.length > 0 && (
+                                <div className="mt-8 pt-6 border-t border-white/[0.05] space-y-4">
+                                  <p className="text-[10px] font-normal tracking-widest text-zinc-600 uppercase">Sent</p>
+                                  {active.replies.map((r) => (
+                                    <div key={r.id} className="rounded-xl bg-blue-500/[0.05] border border-blue-500/15 p-4">
+                                      <div className="flex items-center justify-between mb-2">
+                                        <span className="text-[10.5px] font-light text-blue-300">From {r.from}</span>
+                                        <span className="text-[10px] font-light text-zinc-600">{new Date(r.sentAt).toLocaleString()}</span>
+                                      </div>
+                                      <p className="text-[12.5px] font-light text-zinc-200 whitespace-pre-wrap">{r.body}</p>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Reply composer */}
+                            <div className="px-5 py-4 border-t border-white/[0.05] bg-[#0c0c0d]">
+                              <div className="flex items-start gap-3">
+                                <textarea
+                                  rows={2}
+                                  placeholder={`Reply to ${active.fromName || active.fromAddress}…`}
+                                  value={inboxReply}
+                                  onChange={(e) => setInboxReply(e.target.value)}
+                                  className="flex-1 resize-none bg-[#1a1a1e] border border-white/[0.07] rounded-xl px-3.5 py-2.5 text-[13px] font-light text-white placeholder-zinc-700 focus:outline-none focus:border-blue-500/30 transition-colors leading-relaxed"
+                                />
+                                <button onClick={inboxReplySend}
+                                  disabled={!inboxReply.trim() || inboxSending}
+                                  className="w-10 h-10 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors shrink-0">
+                                  {inboxSending ? <Loader2 className="w-4 h-4 text-white animate-spin" /> : <Reply className="w-4 h-4 text-white" />}
+                                </button>
+                              </div>
+                              <p className="text-[10px] font-light text-zinc-700 mt-2">
+                                Sends from your configured Resend sender. The original message is quoted in the reply.
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
               </motion.div>
             )}
 

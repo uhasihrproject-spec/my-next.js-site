@@ -461,3 +461,66 @@ export async function createMessage(
   await saveMessages(messages);
   return message;
 }
+
+/* ─── Inbound email inbox ─────────────────────────────────────────
+   Emails delivered to @yourdomain that Resend POSTs to the webhook
+   endpoint. Kept in the same Netlify Blob store as everything else.
+   ─────────────────────────────────────────────────────────────────*/
+export interface InboundEmail {
+  id: string;
+  /** Sender — `Name <addr@domain>` or just `addr@domain` */
+  from: string;
+  fromName?: string;
+  fromAddress: string;
+  /** Recipient address that the email was delivered to */
+  to: string;
+  subject: string;
+  text: string;
+  html?: string;
+  receivedAt: string;
+  read: boolean;
+  archived?: boolean;
+  /** Threaded replies sent from the admin panel */
+  replies?: { id: string; body: string; sentAt: string; from: string }[];
+}
+
+export async function getInboundEmails(): Promise<InboundEmail[]> {
+  return readData<InboundEmail[]>("inbound_emails", []);
+}
+
+export async function saveInboundEmails(emails: InboundEmail[]): Promise<void> {
+  await writeData("inbound_emails", emails);
+}
+
+export async function addInboundEmail(
+  email: Omit<InboundEmail, "id" | "receivedAt" | "read">
+): Promise<InboundEmail> {
+  const record: InboundEmail = {
+    ...email,
+    id: generateId(),
+    receivedAt: new Date().toISOString(),
+    read: false,
+  };
+  const list = await getInboundEmails();
+  list.unshift(record);                          // newest first
+  // Bound the inbox so the blob doesn't grow unbounded
+  await saveInboundEmails(list.slice(0, 1000));
+  return record;
+}
+
+export async function getInboundEmailById(id: string): Promise<InboundEmail | undefined> {
+  return (await getInboundEmails()).find((e) => e.id === id);
+}
+
+export async function updateInboundEmail(updated: InboundEmail): Promise<void> {
+  const list = await getInboundEmails();
+  const i = list.findIndex((e) => e.id === updated.id);
+  if (i === -1) return;
+  list[i] = updated;
+  await saveInboundEmails(list);
+}
+
+export async function deleteInboundEmail(id: string): Promise<void> {
+  const list = await getInboundEmails();
+  await saveInboundEmails(list.filter((e) => e.id !== id));
+}
