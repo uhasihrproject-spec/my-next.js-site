@@ -55,7 +55,7 @@
     "userEmail": "uhasihrproject@gmail.com",
     "text": "hii",
     "from": "user",
-    "read": false,
+    "read": true,
     "id": "14b2d81d-0a77-4428-9980-2cce68f2543c",
     "createdAt": "2026-05-15T03:57:17.418Z"
   }
