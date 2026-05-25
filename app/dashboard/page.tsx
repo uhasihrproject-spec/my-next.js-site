@@ -18,6 +18,7 @@ import type { CoinKey } from "@/lib/db";
 import ChatWidget from "@/components/ChatWidget";
 import { useTheme, type ThemeChoice } from "@/components/ThemeProvider";
 import Logo from "@/components/Logo";
+import { usePrices, toUsd } from "@/components/usePrices";
 
 /* ─── Constants ─── */
 const COINS: CoinKey[] = [
@@ -60,7 +61,7 @@ interface UserData {
   balance: Partial<Record<CoinKey, number>>;
   earnings: Partial<Record<CoinKey, number>>;
   deposits: { id: string; coin: CoinKey; amount: number; txHash: string; status: string; note?: string; date: string }[];
-  withdrawals: { id: string; coin: CoinKey; amount: number; address: string; status: string; note?: string; requestDate: string }[];
+  withdrawals: { id: string; coin: CoinKey; amount: number; address: string; status: string; note?: string; requestDate: string; networkFee?: number }[];
   withdrawalUnlockDate: string | null;
   customLock: boolean;
 }
@@ -275,12 +276,37 @@ function Sparkline({ data, positive, w = 64, h = 24 }: { data: number[]; positiv
   );
 }
 
+/* ─── Live USD conversion helpers — used by Deposit/Withdraw modals ─── */
+function UsdConversion({ coin, amount }: { coin: CoinKey; amount: string | number }) {
+  const prices = usePrices();
+  const n = typeof amount === "string" ? parseFloat(amount) : amount;
+  const usd = isFinite(n) && n > 0 ? toUsd(coin, n, prices) : 0;
+  return (
+    <p className="text-[12px] font-light text-zinc-500 mt-2 font-mono tracking-wide">
+      ≈ <span className="text-zinc-300">{fmtUsd(usd)}</span>
+      <span className="text-zinc-700"> · live</span>
+    </p>
+  );
+}
+
+function UsdInline({ coin, amount }: { coin: CoinKey; amount: number }) {
+  const prices = usePrices();
+  if (!isFinite(amount) || amount <= 0) return null;
+  return (
+    <span className="text-zinc-600 font-light"> · {fmtUsd(toUsd(coin, amount, prices))}</span>
+  );
+}
+
 /* ─── Stacked balance card ─── */
-function BalanceStack({ user, activeCoins, locked, hidden, onToggleHidden }: {
+function BalanceStack({ user, activeCoins, locked, hidden, onToggleHidden, displayUsd, onToggleUsd }: {
   user: UserData; activeCoins: CoinKey[]; locked: boolean;
   hidden: boolean; onToggleHidden: () => void;
+  /** When true the big balance + earnings are shown in USD. */
+  displayUsd: boolean;
+  onToggleUsd: () => void;
 }) {
   const { resolved } = useTheme();
+  const prices = usePrices();
   const isLight = resolved === "light";
   const n = activeCoins.length;
   const [index, setIndex] = useState(0);
@@ -452,20 +478,32 @@ function BalanceStack({ user, activeCoins, locked, hidden, onToggleHidden }: {
               </div>
 
               {/* Coin + balance */}
-              <div className="flex items-center gap-2.5 mb-2.5">
-                <CoinGlyph coin={coin} size={30} />
-                <div>
-                  <p className="text-[11px] font-normal tracking-wider uppercase" style={{ color: c }}>{coin}</p>
-                  <p className="text-[10px] font-light leading-none mt-0.5" style={{ color: txWhisper }}>{COIN_NAME[coin]}</p>
+              <div className="flex items-center justify-between gap-2.5 mb-2.5">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <CoinGlyph coin={coin} size={30} />
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-normal tracking-wider uppercase" style={{ color: c }}>{coin}</p>
+                    <p className="text-[10px] font-light leading-none mt-0.5" style={{ color: txWhisper }}>{COIN_NAME[coin]}</p>
+                  </div>
                 </div>
+                {/* Coin ⇄ USD toggle */}
+                <button
+                  onClick={(e) => { e.stopPropagation(); onToggleUsd(); }}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  className="text-[9.5px] font-normal tracking-wide rounded-md px-2 py-1 transition-colors"
+                  style={{ backgroundColor: chipBg, border: `1px solid ${chipBd}`, color: txSoft }}
+                  title={displayUsd ? "Show in coin" : "Show in USD"}
+                >
+                  {displayUsd ? "USD" : coin} ⇄
+                </button>
               </div>
               <p className="text-[27px] font-light font-mono leading-none" style={{ color: txMain }}>
-                {hidden ? "••••••" : bal.toFixed(6)}
+                {hidden ? "••••••" : displayUsd ? fmtUsd(toUsd(coin, bal, prices)) : bal.toFixed(6)}
               </p>
               <div className="flex items-center gap-2 mt-2">
                 <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: emeraldClr }} />
                 <p className="text-[11px] font-light font-mono" style={{ color: emeraldClr }}>
-                  {hidden ? "••••" : `+${earn.toFixed(6)}`}
+                  {hidden ? "••••" : displayUsd ? `+${fmtUsd(toUsd(coin, earn, prices))}` : `+${earn.toFixed(6)}`}
                 </p>
                 {pct && !hidden && <span className="text-[10px] font-light" style={{ color: emeraldSoft }}>+{pct}%</span>}
               </div>
@@ -665,6 +703,7 @@ function DepositOverlay({
                     className="mt-4 w-full text-[44px] font-light text-white placeholder-zinc-800 focus:outline-none bg-transparent [appearance:textfield] leading-none text-center"
                   />
                   <span className="text-[12px] font-light text-zinc-600 mt-1 uppercase tracking-wider">{coin}</span>
+                  <UsdConversion coin={coin} amount={amount} />
                   <div className="h-px bg-white/[0.06] w-full mt-5" />
                 </div>
 
@@ -916,6 +955,7 @@ function WithdrawOverlay({
                     <CoinGlyph coin={coin} size={28} />
                     <p className="text-[13px] font-light text-zinc-500">
                       Available: <span className="text-zinc-300 font-mono">{available.toFixed(6)}</span>
+                      <UsdInline coin={coin} amount={available} />
                     </p>
                   </div>
                   <button onClick={() => setAmount(available.toFixed(8))}
@@ -932,6 +972,7 @@ function WithdrawOverlay({
                     className="w-full text-[44px] font-light text-white placeholder-zinc-800 focus:outline-none bg-transparent [appearance:textfield] leading-none text-center"
                   />
                   <span className="text-[12px] font-light text-zinc-600 mt-1 uppercase tracking-wider">{coin}</span>
+                  <UsdConversion coin={coin} amount={amount} />
                   <div className="h-px bg-white/[0.06] w-full mt-5" />
                 </div>
 
@@ -1321,6 +1362,7 @@ function ActivityContent({
                           ref: "WX-" + w.id.replace(/[^a-zA-Z0-9]/g, "").slice(0, 6).toUpperCase(),
                           dateLabel: new Date(w.requestDate).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" }),
                           coin: w.coin, amount: w.amount, destination: w.address, status: w.status,
+                          networkFee: w.networkFee,
                         })}
                         className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.09] border border-white/[0.08] text-[12px] font-normal text-zinc-300 hover:text-white transition-all active:scale-[0.99]"
                       >
@@ -2393,6 +2435,8 @@ interface ReceiptData {
   amount: string | number;
   destination: string;
   status: string;
+  /** Admin-set network fee in coin units; 0 means no fee. Defaults to 0. */
+  networkFee?: number;
 }
 
 const RECEIPT_STATUS: Record<string, { label: string; color: string }> = {
@@ -2452,8 +2496,24 @@ function ReceiptCard({ data }: { data: ReceiptData }) {
         )}
         <div className="flex items-center justify-between">
           <span className="text-[10px] font-light text-zinc-600 uppercase tracking-wider">Network fee</span>
-          <span className="text-[11px] font-mono text-emerald-400">Covered</span>
+          <span className="text-[11px] font-mono text-zinc-200">
+            {data.networkFee && data.networkFee > 0
+              ? `${data.networkFee.toFixed(8).replace(/\.?0+$/, "")} ${data.coin}`
+              : `0.00 ${data.coin}`}
+          </span>
         </div>
+        {data.networkFee != null && data.networkFee > 0 && (
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-light text-zinc-600 uppercase tracking-wider">You receive</span>
+            <span className="text-[11px] font-mono text-zinc-100 font-semibold">
+              {(() => {
+                const sent = typeof data.amount === "string" ? parseFloat(data.amount) : data.amount;
+                const net = isFinite(sent) ? Math.max(0, sent - (data.networkFee || 0)) : sent;
+                return `${(typeof net === "number" ? net.toFixed(8).replace(/\.?0+$/, "") : net)} ${data.coin}`;
+              })()}
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="border-t border-dashed border-white/[0.12] mx-3" />
@@ -2476,6 +2536,12 @@ function ReceiptCard({ data }: { data: ReceiptData }) {
 function downloadReceipt(data: ReceiptData) {
   const st = RECEIPT_STATUS[data.status] || RECEIPT_STATUS.pending;
   const W = 560, pad = 48;
+  const fee = data.networkFee ?? 0;
+  const sent = typeof data.amount === "string" ? parseFloat(String(data.amount)) : data.amount;
+  const trim = (n: number) => n.toFixed(8).replace(/\.?0+$/, "");
+  const feeRow: [string, string] = fee > 0
+    ? ["NETWORK FEE", `${trim(fee)} ${data.coin}`]
+    : ["NETWORK FEE", `0.00 ${data.coin}`];
   const rows: [string, string][] = [
     ["REFERENCE", data.ref],
     ["DATE", data.dateLabel],
@@ -2484,7 +2550,10 @@ function downloadReceipt(data: ReceiptData) {
     ["DESTINATION", data.destination.length > 32
       ? `${data.destination.slice(0, 18)}…${data.destination.slice(-10)}`
       : data.destination],
-    ["NETWORK FEE", "Covered by VaultX"],
+    feeRow,
+    ...(fee > 0 && isFinite(sent)
+      ? ([["YOU RECEIVE", `${trim(Math.max(0, sent - fee))} ${data.coin}`]] as [string, string][])
+      : []),
   ];
   const H = 130 + rows.length * 52 + 150;
   const c = document.createElement("canvas");
@@ -2603,15 +2672,24 @@ export default function Dashboard() {
   const [locked, setLocked] = useState(true);
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
   const [balanceHidden, setBalanceHidden] = useState(false);
+  const [displayUsd, setDisplayUsd] = useState(false);
 
   useEffect(() => {
     try { setBalanceHidden(localStorage.getItem("vaultx_hide_balance") === "1"); } catch { /* ignore */ }
+    try { setDisplayUsd(localStorage.getItem("vaultx_display_usd") === "1"); } catch { /* ignore */ }
   }, []);
 
   function toggleBalanceHidden() {
     setBalanceHidden((h) => {
       const next = !h;
       try { localStorage.setItem("vaultx_hide_balance", next ? "1" : "0"); } catch { /* ignore */ }
+      return next;
+    });
+  }
+  function toggleDisplayUsd() {
+    setDisplayUsd((u) => {
+      const next = !u;
+      try { localStorage.setItem("vaultx_display_usd", next ? "1" : "0"); } catch { /* ignore */ }
       return next;
     });
   }
@@ -2655,7 +2733,6 @@ export default function Dashboard() {
     return { locked: false, reason: null };
   })();
 
-  const totalEarnings = COINS.reduce((s, c) => s + (user?.earnings[c] || 0), 0);
   const activeCoins = COINS.filter(c => (user?.balance[c] || 0) + (user?.earnings[c] || 0) > 0);
   const hasAnyBalance = activeCoins.length > 0;
 
@@ -2807,7 +2884,8 @@ export default function Dashboard() {
           {/* Stacked balance card — directly under the name */}
           {tab === "portfolio" && user && (
             <BalanceStack user={user} activeCoins={activeCoins} locked={!!lockStatus?.locked}
-              hidden={balanceHidden} onToggleHidden={toggleBalanceHidden} />
+              hidden={balanceHidden} onToggleHidden={toggleBalanceHidden}
+              displayUsd={displayUsd} onToggleUsd={toggleDisplayUsd} />
           )}
 
           {/* Mobile quick actions (desktop has them in sidebar) */}

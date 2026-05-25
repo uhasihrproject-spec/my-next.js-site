@@ -39,7 +39,7 @@ interface UserData {
   balance: Partial<Record<CoinKey, number>>;
   earnings: Partial<Record<CoinKey, number>>;
   deposits: { id: string; coin: CoinKey; amount: number; txHash: string; status: string; note?: string; date: string }[];
-  withdrawals: { id: string; coin: CoinKey; amount: number; address: string; status: string; note?: string; requestDate: string }[];
+  withdrawals: { id: string; coin: CoinKey; amount: number; address: string; status: string; note?: string; requestDate: string; networkFee?: number }[];
   withdrawalUnlockDate: string | null;
   customLock: boolean;
   createdAt: string;
@@ -51,6 +51,7 @@ interface DepositRow {
 interface WithdrawalRow {
   id: string; userId: string; userName: string; userEmail: string;
   coin: CoinKey; amount: number; address: string; status: string; note?: string; requestDate: string;
+  networkFee?: number;
 }
 interface SiteSettings {
   globalWithdrawalLock: boolean; globalWithdrawalLockReason: string;
@@ -318,12 +319,15 @@ function UserDrawer({
    ACTION SHEET — bottom sheet for deposit/withdrawal actions
 ───────────────────────────────────────────────── */
 function ActionSheet({
-  item, kind, note, onChangeNote, onAction, onClose,
+  item, kind, note, onChangeNote, fee, onChangeFee, onAction, onClose,
 }: {
   item: DepositRow | WithdrawalRow;
   kind: "deposit" | "withdrawal";
   note: string;
   onChangeNote: (v: string) => void;
+  /** Network fee in coin units — only used for withdrawals. */
+  fee?: string;
+  onChangeFee?: (v: string) => void;
   onAction: (action: string) => void;
   onClose: () => void;
 }) {
@@ -386,6 +390,27 @@ function ActionSheet({
                   className="w-full px-4 py-3 bg-[#1a1a1e] border border-white/[0.06] rounded-xl text-white text-[13px] font-light placeholder:text-zinc-700 focus:outline-none focus:border-blue-500/30"
                 />
               </div>
+
+              {/* Withdrawal network fee (optional) */}
+              {kind === "withdrawal" && onChangeFee && (
+                <div className="mb-4">
+                  <label className="text-[10px] font-normal tracking-widest text-zinc-600 uppercase block mb-2">
+                    Network fee in {item.coin} (optional)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number" step="any" min="0"
+                      value={fee ?? ""} onChange={(e) => onChangeFee(e.target.value)}
+                      placeholder="0.00"
+                      className="w-full px-4 py-3 pr-16 bg-[#1a1a1e] border border-white/[0.06] rounded-xl text-white text-[13px] font-light font-mono placeholder:text-zinc-700 focus:outline-none focus:border-blue-500/30"
+                    />
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[11px] font-light text-zinc-600 tracking-wider uppercase">{item.coin}</span>
+                  </div>
+                  <p className="text-[10px] font-light text-zinc-700 mt-1.5">
+                    Defaults to 0. Added to the deduction at &ldquo;Mark completed&rdquo; and shown on the user&apos;s receipt.
+                  </p>
+                </div>
+              )}
 
               {/* Action buttons */}
               <div className="space-y-2">
@@ -589,6 +614,7 @@ export default function AdminPage() {
   const [userDrawer, setUserDrawer] = useState<string | null>(null);
   const [actionSheet, setActionSheet] = useState<{ kind: "deposit" | "withdrawal"; id: string } | null>(null);
   const [actionNote, setActionNote] = useState("");
+  const [actionFee, setActionFee] = useState("");
 
   const chatBottomRef = useRef<HTMLDivElement>(null);
 
@@ -631,6 +657,32 @@ export default function AdminPage() {
   }, [router]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  // Auto-refresh every 15 s so new deposits, withdrawals, messages and user
+  // updates show up without a manual reload. Pauses while a tab is hidden
+  // (saves API calls) and resumes as soon as the admin focuses the page.
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval> | null = null;
+    const start = () => {
+      if (interval) return;
+      interval = setInterval(() => {
+        if (document.visibilityState === "visible") fetchAll();
+      }, 15_000);
+    };
+    const stop = () => { if (interval) { clearInterval(interval); interval = null; } };
+    const onVis = () => {
+      if (document.visibilityState === "visible") { fetchAll(); start(); }
+      else stop();
+    };
+    start();
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("focus", onVis);
+    return () => {
+      stop();
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("focus", onVis);
+    };
+  }, [fetchAll]);
 
   useEffect(() => {
     if (tab === "messages") {
@@ -727,12 +779,20 @@ export default function AdminPage() {
     else showToast("Action failed", "error");
   }
 
-  async function handleWithdrawalAction(wd: WithdrawalRow, action: string, note: string) {
+  async function handleWithdrawalAction(wd: WithdrawalRow, action: string, note: string, networkFee?: string) {
     const res = await fetch("/api/admin/withdrawals", {
       method: "PUT", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: wd.userId, withdrawalId: wd.id, action, note }),
+      body: JSON.stringify({
+        userId: wd.userId,
+        withdrawalId: wd.id,
+        action,
+        note,
+        // Send the fee only when the admin actually typed a number; falsy
+        // strings ("", "0", "0.00") are all accepted by the API.
+        ...(networkFee !== undefined ? { networkFee } : {}),
+      }),
     });
-    setActionSheet(null); setActionNote("");
+    setActionSheet(null); setActionNote(""); setActionFee("");
     if (res.ok) { await fetchAll(); showToast(`Withdrawal ${action}ed`); }
     else showToast("Action failed", "error");
   }
@@ -877,9 +937,18 @@ export default function AdminPage() {
                     <p className="text-[10px] font-light tracking-widest text-zinc-600 uppercase mb-1">Control panel</p>
                     <h1 className="text-xl font-light text-white">Overview</h1>
                   </div>
-                  <button onClick={fetchAll} className="flex items-center gap-2 px-3.5 py-2 bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.06] text-zinc-500 hover:text-zinc-200 text-[12px] font-light rounded-xl transition-all">
-                    <RefreshCw className="w-3.5 h-3.5" /> Refresh
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-400/[0.06] border border-emerald-400/15" title="Auto-refreshing every 15s">
+                      <span className="relative flex w-1.5 h-1.5">
+                        <span className="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-75" />
+                        <span className="relative inline-flex w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                      </span>
+                      <span className="text-[10.5px] font-light text-emerald-300/90 tracking-wide">Live</span>
+                    </div>
+                    <button onClick={fetchAll} className="flex items-center gap-2 px-3.5 py-2 bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.06] text-zinc-500 hover:text-zinc-200 text-[12px] font-light rounded-xl transition-all">
+                      <RefreshCw className="w-3.5 h-3.5" /> Refresh
+                    </button>
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
                   {[
@@ -1137,7 +1206,7 @@ export default function AdminPage() {
                             <p className="text-[11px] font-light text-zinc-600">{new Date(wd.requestDate).toLocaleDateString()}</p>
                           </div>
                           <div className="col-span-2 flex justify-end">
-                            <button onClick={() => { setActionSheet({ kind: "withdrawal", id: wd.id }); setActionNote(""); }}
+                            <button onClick={() => { setActionSheet({ kind: "withdrawal", id: wd.id }); setActionNote(""); setActionFee(wd.networkFee != null ? String(wd.networkFee) : "0"); }}
                               className={`px-3.5 py-1.5 rounded-lg text-[11px] font-normal transition-colors ${
                                 wd.status === "pending" || wd.status === "processing"
                                   ? "bg-white/[0.07] border border-white/[0.1] text-zinc-300 hover:bg-white/[0.11]"
@@ -1151,7 +1220,7 @@ export default function AdminPage() {
                         {/* Mobile row */}
                         <button
                           className="md:hidden w-full flex items-center gap-3.5 px-4 py-4 text-left active:bg-white/[0.04] transition-colors"
-                          onClick={() => { setActionSheet({ kind: "withdrawal", id: wd.id }); setActionNote(""); }}
+                          onClick={() => { setActionSheet({ kind: "withdrawal", id: wd.id }); setActionNote(""); setActionFee(wd.networkFee != null ? String(wd.networkFee) : "0"); }}
                         >
                           <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-[14px]" style={{ backgroundColor: COIN_COLORS[wd.coin] + "18", color: COIN_COLORS[wd.coin] }}>
                             {wd.coin.charAt(0)}
@@ -1180,9 +1249,18 @@ export default function AdminPage() {
                     <p className="text-[10px] font-light tracking-widest text-zinc-600 uppercase mb-1">Support</p>
                     <h1 className="text-xl font-light text-white">Messages</h1>
                   </div>
-                  <button onClick={fetchAll} className="flex items-center gap-2 px-3.5 py-2 bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.06] text-zinc-500 hover:text-zinc-200 text-[12px] font-light rounded-xl transition-all">
-                    <RefreshCw className="w-3.5 h-3.5" /> Refresh
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-400/[0.06] border border-emerald-400/15" title="Auto-refreshing every 15s">
+                      <span className="relative flex w-1.5 h-1.5">
+                        <span className="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-75" />
+                        <span className="relative inline-flex w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                      </span>
+                      <span className="text-[10.5px] font-light text-emerald-300/90 tracking-wide">Live</span>
+                    </div>
+                    <button onClick={fetchAll} className="flex items-center gap-2 px-3.5 py-2 bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.06] text-zinc-500 hover:text-zinc-200 text-[12px] font-light rounded-xl transition-all">
+                      <RefreshCw className="w-3.5 h-3.5" /> Refresh
+                    </button>
+                  </div>
                 </div>
 
                 {conversations.length === 0 ? (
@@ -1603,14 +1681,16 @@ export default function AdminPage() {
             kind={actionSheet.kind}
             note={actionNote}
             onChangeNote={setActionNote}
+            fee={actionFee}
+            onChangeFee={setActionFee}
             onAction={(action) => {
               if (actionSheet.kind === "deposit") {
                 handleDepositAction(actionItem as DepositRow, action, actionNote);
               } else {
-                handleWithdrawalAction(actionItem as WithdrawalRow, action, actionNote);
+                handleWithdrawalAction(actionItem as WithdrawalRow, action, actionNote, actionFee);
               }
             }}
-            onClose={() => { setActionSheet(null); setActionNote(""); }}
+            onClose={() => { setActionSheet(null); setActionNote(""); setActionFee(""); }}
           />
         )}
       </AnimatePresence>

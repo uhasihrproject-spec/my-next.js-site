@@ -82,6 +82,9 @@ export interface Withdrawal {
   note?: string;
   requestDate: string;
   processedDate?: string;
+  /** Network/miner fee (in the same coin units), set by the admin on approval.
+   *  Defaults to 0 when not set; the receipt always shows it. */
+  networkFee?: number;
 }
 
 export interface User {

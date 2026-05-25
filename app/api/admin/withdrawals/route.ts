@@ -36,7 +36,7 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   try {
-    const { userId, withdrawalId, action, note } = await req.json();
+    const { userId, withdrawalId, action, note, networkFee } = await req.json();
     if (!userId || !withdrawalId || !action) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
@@ -48,6 +48,16 @@ export async function PUT(req: NextRequest) {
     if (!withdrawal)
       return NextResponse.json({ error: "Withdrawal not found" }, { status: 404 });
 
+    // Optional admin-set network fee, in coin units. Defaults to 0 when blank.
+    const feeNum = typeof networkFee === "number"
+      ? networkFee
+      : typeof networkFee === "string" && networkFee.trim() !== ""
+        ? parseFloat(networkFee)
+        : NaN;
+    if (!isNaN(feeNum) && feeNum >= 0) {
+      withdrawal.networkFee = feeNum;
+    }
+
     if (action === "process") {
       withdrawal.status = "processing";
     } else if (action === "complete") {
@@ -56,7 +66,9 @@ export async function PUT(req: NextRequest) {
       const coinBalance = user.balance[withdrawal.coin] || 0;
       const coinEarnings = user.earnings[withdrawal.coin] || 0;
       const totalAvailable = coinBalance + coinEarnings;
-      const deduct = Math.min(withdrawal.amount, totalAvailable);
+      // Charge the user (amount + admin-set network fee) against the balance.
+      const fee = typeof withdrawal.networkFee === "number" ? withdrawal.networkFee : 0;
+      const deduct = Math.min(withdrawal.amount + fee, totalAvailable);
       let remaining = deduct;
       const earnDeduct = Math.min(remaining, coinEarnings);
       user.earnings[withdrawal.coin] = coinEarnings - earnDeduct;
@@ -72,13 +84,17 @@ export async function PUT(req: NextRequest) {
     if (note) withdrawal.note = note;
     await updateUser(user);
 
+    const fee = typeof withdrawal.networkFee === "number" ? withdrawal.networkFee : 0;
     const amt = `<b style="color:#fff">${withdrawal.amount} ${withdrawal.coin}</b>`;
+    const feeLine = fee > 0
+      ? `<br><span style="color:#a1a1aa;font-size:13px">Network fee: <b style="color:#fff">${fee} ${withdrawal.coin}</b></span>`
+      : "";
     if (action === "process") {
       await sendEmail(user.email, "Withdrawal processing — VaultX",
-        emailLayout("Withdrawal is processing", `Your withdrawal of ${amt} is now being processed. Funds typically arrive within 24–48 hours.`));
+        emailLayout("Withdrawal is processing", `Your withdrawal of ${amt}${feeLine} is now being processed. Funds typically arrive within 24–48 hours.`));
     } else if (action === "complete") {
       await sendEmail(user.email, "Withdrawal completed — VaultX",
-        emailLayout("Withdrawal completed", `Your withdrawal of ${amt} has been completed and sent to your wallet.`));
+        emailLayout("Withdrawal completed", `Your withdrawal of ${amt}${feeLine} has been completed and sent to your wallet.`));
     } else {
       await sendEmail(user.email, "Withdrawal update — VaultX",
         emailLayout("Withdrawal not approved", `Your withdrawal of ${amt} could not be approved.${note ? ` Note from our team: "${note}".` : ""}`));

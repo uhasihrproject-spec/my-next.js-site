@@ -1,21 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserByEmail, hashPassword, createSession } from "@/lib/db";
-import { verifyRecaptcha } from "@/lib/recaptcha";
 
 export async function POST(req: NextRequest) {
   try {
-    const { email, password, recaptchaToken } = await req.json();
+    const { email, password } = await req.json();
 
     if (!email || !password) {
       return NextResponse.json(
         { error: "Email and password are required" },
         { status: 400 }
       );
-    }
-
-    const captcha = await verifyRecaptcha(recaptchaToken);
-    if (!captcha.ok) {
-      return NextResponse.json({ error: captcha.error || "reCAPTCHA failed" }, { status: 400 });
     }
 
     const user = await getUserByEmail(email);

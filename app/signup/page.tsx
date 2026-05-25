@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  TrendingUp, Eye, EyeOff, Loader2, ShieldCheck,
+  Eye, EyeOff, Loader2, ShieldCheck,
   Check, User, Mail, Globe, Calendar, KeyRound,
   ArrowRight, ArrowLeft, AlertCircle, Snowflake, ScanFace,
   Camera, RotateCw, ChevronDown,

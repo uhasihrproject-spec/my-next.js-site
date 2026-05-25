@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  TrendingUp, Mail, KeyRound, Loader2, Lock, ShieldCheck,
+  Mail, KeyRound, Loader2, Lock, ShieldCheck,
   Eye, EyeOff, ArrowLeft, ArrowRight, Check, AlertCircle, Fingerprint,
 } from "lucide-react";
 import Logo from "@/components/Logo";

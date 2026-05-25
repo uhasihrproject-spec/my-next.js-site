@@ -14,6 +14,20 @@ export function cleanEnv(v: string | undefined | null): string {
   return (v || "").trim().replace(/^['"`]+|['"`]+$/g, "").trim();
 }
 
+/**
+ * True when the string contains a valid bare email or "Name <email>" pairing.
+ * Used to defensively guard against partially-filled-in RESEND_FROM env vars
+ * like `VaultX <onboarding@>` (no domain) which Resend will reject.
+ */
+function isValidFromAddress(v: string): boolean {
+  if (!v) return false;
+  // Pull out the part inside angle brackets if present, else use the whole string
+  const angle = v.match(/<([^>]+)>/);
+  const addr = (angle ? angle[1] : v).trim();
+  // Standard local@domain.tld shape — no spaces, an @, and a domain with a dot
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(addr);
+}
+
 export async function sendEmail(
   to: string,
   subject: string,
@@ -26,7 +40,17 @@ export async function sendEmail(
   }
   if (!to) return { ok: false, error: "No recipient address" };
 
-  const from = cleanEnv(process.env.RESEND_FROM) || "VaultX <onboarding@resend.dev>";
+  // Resolve and *validate* the configured "from". Catch common misconfigurations
+  // like `VaultX <onboarding@>` (missing domain) or a bare username that would
+  // make Resend reject the request, and fall back to the always-valid default.
+  const FALLBACK_FROM = "VaultX <onboarding@resend.dev>";
+  const configuredFrom = cleanEnv(process.env.RESEND_FROM);
+  const from = isValidFromAddress(configuredFrom) ? configuredFrom : FALLBACK_FROM;
+  if (configuredFrom && from !== configuredFrom) {
+    console.warn(
+      `[notify] RESEND_FROM "${configuredFrom}" looks malformed (no valid email) — falling back to ${FALLBACK_FROM}.`
+    );
+  }
   try {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 9000);
